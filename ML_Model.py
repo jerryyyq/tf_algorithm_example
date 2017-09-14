@@ -9,7 +9,6 @@
 
 import tensorflow as tf
 import os
-import time
 
 class ML_Model:
     ####################### 构造与析构函数 #######################
