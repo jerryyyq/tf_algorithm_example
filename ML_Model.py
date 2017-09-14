@@ -9,34 +9,34 @@
 
 import tensorflow as tf
 import os
+import time
 
 class ML_Model:
     ####################### 构造与析构函数 #######################
     def __init__(self):
-        self.__sess = tf.Session()
         self.__x = tf.Variable(0., name = "x")
-    
+        self.__save_path = os.path.join( '/tmp', self.__class__.__name__ + '.vari' )
     
     def __del__(self):
         self.__sess.close()
     
     
-    ####################### 启动执行函数 #######################
-    # training_steps    实际训练迭代次数 
-    def do_train(self, training_steps = 1000):
-        print( 'do_train: start' )
-        
+    ####################### 学习与评价启动执行函数 #######################
+    # training_steps    实际训练迭代次数
+    # file_name: ['train_1.csv', 'train_2.csv']
+    def do_train(self, training_steps = 1000, train_file_name = [], train_batch_size = 10):
+        print( '-------------- do_train: start -----------------' )
+        self.__sess = tf.Session()
         self.__sess.run( tf.initialize_all_variables() )
     
-        features, label = self.inputs()
-    
+        features, label = self.inputs( train_file_name, train_batch_size )
+        total_loss = self.loss( features, label ) 
+        train_op = self.train( total_loss )
+        
         coord = tf.train.Coordinator() 
         threads = tf.train.start_queue_runners( sess = self.__sess, coord = coord ) 
 
         try:
-            total_loss = self.loss( features, label ) 
-            train_op = self.train( total_loss ) 
-
             for step in range(training_steps):    # 实际训练闭环 
                 self.__sess.run(train_op)
 
@@ -47,9 +47,14 @@ class ML_Model:
 
             #print( str(training_steps) + " final loss: ", sess.run([total_loss]) )
             self._echo_tensor( total_loss, 'step_' + str(step) + ' final loss: ' )
+            
+            saver = tf.train.Saver()
+            save_path = saver.save( self.__sess, self.__save_path )
+            print('save_path is: ', save_path)
 
             # 模型评估
-            self.evaluate( features, label ) 
+            evaluate_result = self.evaluate( features, label ) 
+            self._echo_tensor( evaluate_result, 'evaluate_result' )
     
         except tf.errors.OutOfRangeError:
             print( 'Done training -- epoch limit reached' )
@@ -58,8 +63,39 @@ class ML_Model:
             coord.request_stop()        
             coord.join( threads )
             
-        print( 'do_train: finish' )
+        self.__sess.close()
+  
+        print( '----------------- do_train: finish -----------------' )
+ 
+
+    # file_name: ['test_1.csv', 'test_2.csv']
+    def do_evaluate(self, file_name = [], batch_size = 10):
+        print( '-------------- do_evaluate: start -----------------\n' )
+        self.__sess = tf.Session()
+        saver = tf.train.Saver()
         
+        ckpt = tf.train.get_checkpoint_state( '/tmp' )
+        if ckpt and ckpt.model_checkpoint_path:
+            saver.restore( self.__sess, ckpt.model_checkpoint_path )
+        else:
+            print('not find ckpt file!!!!!')      
+        
+        test_features, test_label = self.inputs( file_name, batch_size )
+        
+        coord = tf.train.Coordinator() 
+        threads = tf.train.start_queue_runners( sess = self.__sess, coord = coord ) 
+
+        self.__sess.run([test_features, test_label])
+        
+        evaluate_result = self.evaluate( test_features, test_label )
+        self._echo_tensor( evaluate_result, 'evaluate_result' )
+        
+        coord.request_stop()        
+        coord.join( threads )
+        
+        self.__sess.close()
+        print( '----------------- do_evaluate: finish -----------------\n' )
+    
     
     ####################### 主流程函数 #######################
     # 计算返回推断模型输出
@@ -72,7 +108,8 @@ class ML_Model:
         return label - label_predicted
     
     # 读取或生成训练数据
-    def inputs(self): 
+    # file_name: ['1.csv', '2.csv']
+    def inputs(self, file_name = [], batch_size = 10): 
         features = tf.constant(0.)
         label = tf.constant(0.)
         return features, label
@@ -85,19 +122,26 @@ class ML_Model:
         return tf.train.GradientDescentOptimizer( learning_rate ).minimize( loss )
 
     # 完成学习后，进行效果评估
-    def evaluate(self, features, label):
-        print( self.__sess.run(self.inference(features)) )
-    
-    
+    def evaluate(self, test_features, test_label):
+        self._echo_tensor(self.__x, 'At evaluate, the __x')
+
+        label_predicted = tf.to_float( self.inference(test_features) )
+        
+        different = (label_predicted - test_label) / test_label
+        
+        self._echo_tensor( test_label, 'test_label' )
+        self._echo_tensor( label_predicted, 'label_predicted' )
+ 
+        return tf.reduce_mean(different)
+
     
     ####################### 辅助函数 #######################
     def _echo_tensor(self, tensor, prefix = ''):
         # 注意： print() 显示时会把元素之间的逗号去掉
-        if( isinstance(tensor, tf.Tensor) ):
-            print( '{0} tensor.shape = {1}, tensor = {2}\r\n'.format(prefix, self.__sess.run(tf.shape(tensor)), self.__sess.run(tensor)) )
-            # print( '{0} tensor = {1}\r\n'.format(prefix, self.__sess.run(tensor)) )
+        if( isinstance(tensor, tf.Tensor) or isinstance(tensor, tf.Variable) ):
+            print( '{0} tensor.shape = {1}, tensor = {2}{3}'.format(prefix, tf.shape(tensor), self.__sess.run(tensor), os.linesep) )
         else:
-            print( '{0} not_tensor = {1}\r\n'.format(prefix, tensor) )
+            print( '{0} not_tensor = {1}{2}'.format(prefix, tensor, os.linesep) )
             
             
     # 从 csv 文件读取数据，加载解析，创建批次读取张量多行数据
