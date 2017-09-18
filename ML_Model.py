@@ -75,7 +75,8 @@ class ML_Model:
         
         ckpt = tf.train.get_checkpoint_state( '/tmp' )
         if ckpt and ckpt.model_checkpoint_path:
-            saver.restore( self.__sess, ckpt.model_checkpoint_path )
+            # saver.restore( self.__sess, ckpt.model_checkpoint_path )
+            saver.restore( self.__sess, self.__save_path )
         else:
             print('not find ckpt file!!!!!')      
         
