@@ -36,17 +36,22 @@ class ML_Model:
         threads = tf.train.start_queue_runners( sess = self.__sess, coord = coord ) 
 
         try:
+            # while not coord.should_stop():
             for step in range(training_steps):    # 实际训练闭环 
+                if coord.should_stop():
+                    print('---- coord should stop ----')
+                    break
                 self.__sess.run(train_op)
 
                 # 查看训练过程损失递减
                 if step % 10 == 0:
-                    # print( str(step) + " loss: ", sess.run([total_loss]) )
+                    self._echo_tensor( features, 'features_' + str(step) )
+                    self._echo_tensor( label, 'label_' + str(step) )
                     self._echo_tensor( total_loss, 'step_' + str(step) + ' loss: ' )
 
             #print( str(training_steps) + " final loss: ", sess.run([total_loss]) )
-            self._echo_tensor( total_loss, 'step_' + str(step) + ' final loss: ' )
-            
+            self._echo_tensor( total_loss, 'training end. step_' + str(step) + ' final loss: ' )
+
             saver = tf.train.Saver()
             save_path = saver.save( self.__sess, self.__save_path )
             print('save_path is: ', save_path)
@@ -87,8 +92,8 @@ class ML_Model:
 
         self.__sess.run([test_features, test_label])
         
-        evaluate_result = self.evaluate( test_features, test_label )
-        self._echo_tensor( evaluate_result, 'evaluate_result' )
+        accuracy_rate = self.evaluate( test_features, test_label )
+        self._echo_tensor( accuracy_rate, 'accuracy_rate' )
         
         coord.request_stop()        
         coord.join( threads )
@@ -139,7 +144,7 @@ class ML_Model:
     def _echo_tensor(self, tensor, prefix = ''):
         # 注意： print() 显示时会把元素之间的逗号去掉
         if( isinstance(tensor, tf.Tensor) or isinstance(tensor, tf.Variable) ):
-            print( '{0} tensor.shape = {1}, tensor = {2}{3}'.format(prefix, tf.shape(tensor), self.__sess.run(tensor), os.linesep) )
+            print( '{0} tensor.shape = {1}, tensor = {2}{3}'.format(prefix, self.__sess.run(tf.shape(tensor)), self.__sess.run(tensor), os.linesep) )
         else:
             print( '{0} not_tensor = {1}{2}'.format(prefix, tensor, os.linesep) )
             
