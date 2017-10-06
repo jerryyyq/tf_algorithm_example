@@ -1,4 +1,11 @@
-.ipynb_checkpoints/
-__pycache__/
 checkpoint
+
+.ipynb_checkpoints/
+
+imagenet-dogs/
+
+record_files/
+
+__pycache__/
+
 
