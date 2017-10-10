@@ -13,11 +13,14 @@ import os
 class ML_Model:
     ####################### 构造与析构函数 #######################
     def __init__(self):
+        self._sess = None
+        
         self.__x = tf.Variable(0., name = "x")
         self.__save_path = os.path.join( '/tmp', self.__class__.__name__ + '.vari' )
     
     def __del__(self):
-        self.__sess.close()
+        if(self._sess):
+            self._sess.close()
     
     
     ####################### 学习与评价启动执行函数 #######################
@@ -25,15 +28,15 @@ class ML_Model:
     # file_name: ['train_1.csv', 'train_2.csv']
     def do_train(self, training_steps = 1000, train_file_name = [], train_batch_size = 10):
         print( '-------------- do_train: start -----------------' )
-        self.__sess = tf.Session()
-        self.__sess.run( tf.initialize_all_variables() )
+        self._sess = tf.Session()
+        self._sess.run( tf.initialize_all_variables() )
     
         features, label = self.inputs( train_file_name, train_batch_size )
         total_loss = self.loss( features, label ) 
         train_op = self.train( total_loss )
         
         coord = tf.train.Coordinator() 
-        threads = tf.train.start_queue_runners( sess = self.__sess, coord = coord ) 
+        threads = tf.train.start_queue_runners( sess = self._sess, coord = coord ) 
 
         try:
             # while not coord.should_stop():
@@ -41,7 +44,7 @@ class ML_Model:
                 if coord.should_stop():
                     print('---- coord should stop ----')
                     break
-                self.__sess.run(train_op)
+                self._sess.run(train_op)
 
                 # 查看训练过程损失递减
                 if step % 10 == 0:
@@ -53,7 +56,7 @@ class ML_Model:
             self._echo_tensor( total_loss, 'training end. step_' + str(step) + ' final loss: ' )
 
             saver = tf.train.Saver()
-            save_path = saver.save( self.__sess, self.__save_path )
+            save_path = saver.save( self._sess, self.__save_path )
             print('save_path is: ', save_path)
 
             # 模型评估
@@ -67,7 +70,7 @@ class ML_Model:
             coord.request_stop()        
             coord.join( threads )
             
-        self.__sess.close()
+        self._sess.close()
   
         print( '----------------- do_train: finish -----------------' )
  
@@ -75,22 +78,22 @@ class ML_Model:
     # file_name: ['test_1.csv', 'test_2.csv']
     def do_evaluate(self, file_name = [], batch_size = 10):
         print( '-------------- do_evaluate: start -----------------\n' )
-        self.__sess = tf.Session()
+        self._sess = tf.Session()
         saver = tf.train.Saver()
         
         ckpt = tf.train.get_checkpoint_state( '/tmp' )
         if ckpt and ckpt.model_checkpoint_path:
-            # saver.restore( self.__sess, ckpt.model_checkpoint_path )
-            saver.restore( self.__sess, self.__save_path )
+            # saver.restore( self._sess, ckpt.model_checkpoint_path )
+            saver.restore( self._sess, self.__save_path )
         else:
             print('not find ckpt file!!!!!')      
         
         test_features, test_label = self.inputs( file_name, batch_size )
         
         coord = tf.train.Coordinator() 
-        threads = tf.train.start_queue_runners( sess = self.__sess, coord = coord ) 
+        threads = tf.train.start_queue_runners( sess = self._sess, coord = coord ) 
 
-        self.__sess.run([test_features, test_label])
+        self._sess.run([test_features, test_label])
         
         accuracy_rate = self.evaluate( test_features, test_label )
         self._echo_tensor( accuracy_rate, 'accuracy_rate' )
@@ -98,7 +101,7 @@ class ML_Model:
         coord.request_stop()        
         coord.join( threads )
         
-        self.__sess.close()
+        self._sess.close()
         print( '----------------- do_evaluate: finish -----------------\n' )
     
     
@@ -144,7 +147,7 @@ class ML_Model:
     def _echo_tensor(self, tensor, prefix = ''):
         # 注意： print() 显示时会把元素之间的逗号去掉
         if( isinstance(tensor, tf.Tensor) or isinstance(tensor, tf.Variable) ):
-            print( '{0} tensor.shape = {1}, tensor = {2}{3}'.format(prefix, self.__sess.run(tf.shape(tensor)), self.__sess.run(tensor), os.linesep) )
+            print( '{0} tensor.shape = {1}, tensor = {2}{3}'.format(prefix, self._sess.run(tf.shape(tensor)), self._sess.run(tensor), os.linesep) )
         else:
             print( '{0} not_tensor = {1}{2}'.format(prefix, tensor, os.linesep) )
             

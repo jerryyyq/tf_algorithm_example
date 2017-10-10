@@ -6,6 +6,8 @@ imagenet-dogs/
 
 record_files/
 
+my_graph*/
+
 __pycache__/
 
 
