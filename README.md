@@ -12,11 +12,12 @@ Tensorflow stand algorithm implementation example
 代码在 python 3.5 和 Tensorflow 0.9 上调试通过
 
 # 内容说明
+1. common.py 是一些基础函数
 1. ML_Model 为机器学习模型基类
 1. ML_Linear_Regression 为线性回归实现类
 1. ML_Sigma_Regression 为对数几率回归实现类
 1. ML_Softmax_Regression 为 Softmax 回归实现类
-
+1. data_source 目录内是学习用的数据样本
 
 
 
