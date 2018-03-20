@@ -83,7 +83,6 @@ class Img2TFRecord(object):
         self.__out_dir = out_dir
         self.__image_type = image_type
 
-        self.__generate_label_file_list()
 
 
     def generate_tf_record_files(self, resize, channel = 1, one_record_max_imgaes = 1024):
@@ -97,10 +96,57 @@ class Img2TFRecord(object):
         Returns:
             none.
         """
+        self.__generate_label_file_list()
+
         self.__generate_tf_record_files('train', self.__train_image_with_breed, resize, channel, one_record_max_imgaes)
         self.__generate_tf_record_files('test', self.__test_image_with_breed, resize, channel, one_record_max_imgaes)
 
 
+    def read_train_images_from_tf_records(self, reshape, batch_size):
+        records_path = os.path.join(self.__out_dir, 'train_*.tfr')
+        return self.read_images_from_tf_records(records_path, reshape, batch_size)
+
+    def read_test_images_from_tf_records(self, reshape, batch_size):
+        records_path = os.path.join(self.__out_dir, 'test_*.tfr')
+        return self.read_images_from_tf_records(records_path, reshape, batch_size)
+    
+
+    @staticmethod
+    def read_images_from_tf_records(records_path, reshape, batch_size):
+        """batch read images from tf_record files. And convert image data to 0.0 ~ 1.0 
+
+        Args:
+            records_path:   example: '/tmp/tf_out/tmp1/train_*.tfr'
+            reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
+            batch_size:     how much images in one batch, example: 10.
+
+        Returns:
+            image_batch, label_batch
+        """
+
+        file_path = tf.train.match_filenames_once( records_path )
+        file_queue = tf.train.string_input_producer( file_path )
+        reader = tf.TFRecordReader()
+        _, serialized = reader.read( file_queue )
+
+        feature = {
+            'label': tf.FixedLenFeature([], tf.int64),   # tf.string
+            'image': tf.FixedLenFeature([], tf.string)
+        }
+
+        features = tf.parse_single_example( serialized, features = feature )
+
+        record_image = tf.decode_raw(features['image'], tf.uint8)
+        label = tf.cast( features['label'], tf.int64 ) # tf.string
+
+        image = tf.reshape(record_image, reshape) # [250, 151, 1]
+        image = tf.cast(image, tf.float32) * (1./255)
+
+        min_after_dequeue = 10
+        capacity = min_after_dequeue + 3 * batch_size
+        image_batch, label_batch = tf.train.shuffle_batch([image, label], batch_size = batch_size, capacity = capacity, min_after_dequeue = min_after_dequeue)
+        return image_batch, label_batch
+        
 
     def __generate_tf_record_files(self, prefix, image_with_breed, resize, channel = 1, one_record_max_imgaes = 1024):
         # delete info file
@@ -194,7 +240,6 @@ class Img2TFRecord(object):
 
 
     def __save_breed_label_to_file(self):
-        print("breed_label: {}".format(self.__breed_label))
         label_breed = sorted(self.__breed_label.items(), key = lambda item:item[1])
         with open(self.__out_dir + '/label.txt', 'w') as f:
             for item in label_breed:
@@ -204,4 +249,23 @@ class Img2TFRecord(object):
         
 if __name__ == '__main__':
     one_Set = Img2TFRecord('/home/yangyuqi/Downloads/Images', '/tmp/tf_out/tmp1')
+
+    # test renerate function
     one_Set.generate_tf_record_files( (250, 151) )
+
+    # test read function
+    image_batch, label_batch = one_Set.read_train_images_from_tf_records([250, 151, 1], 5)
+    init = tf.initialize_all_variables()   # tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    with tf.Session() as sess:
+        sess.run(init)
+
+        coord = tf.train.Coordinator() 
+        threads = tf.train.start_queue_runners( sess = sess, coord = coord )
+
+        for i in range(3):
+            img, lab = sess.run([image_batch, label_batch])
+            print(img.shape, lab)
+
+        #关闭线程  
+        coord.request_stop()  
+        coord.join(threads)
