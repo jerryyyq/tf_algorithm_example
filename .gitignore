@@ -8,6 +8,8 @@ record_files/
 
 my_graph*/
 
+out/
+
 __pycache__/
 
 
