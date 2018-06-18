@@ -10,6 +10,8 @@ my_graph*/
 
 out/
 
+tmp/
+
 __pycache__/
 
 
