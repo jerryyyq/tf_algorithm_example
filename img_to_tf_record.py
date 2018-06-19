@@ -103,6 +103,8 @@ class Img2TFRecord(object):
         self.__generate_tf_record_files('train', self.__train_image_with_breed, resize, channel, one_record_max_imgaes)
         self.__generate_tf_record_files('test', self.__test_image_with_breed, resize, channel, one_record_max_imgaes)
 
+        print( "generate_tf_record_files file finish.\n" )
+
 
     def read_train_images_from_tf_records(self, reshape, batch_size):
         records_path = os.path.join(self.__out_dir, 'train_*.tfr')
@@ -203,6 +205,8 @@ class Img2TFRecord(object):
 
         writer.close()
         self.__save_record_info_to_file(prefix, current_index - 1, image_amount)
+
+        print( "generate {} record file finish, total {} files.\n".format(prefix, current_index) )
 
 
     def __save_record_info_to_file(self, prefix, record_index, image_amount):
