@@ -33,9 +33,8 @@ class ML_Model:
         self._sess = tf.Session()
         self._sess.run( tf.initialize_all_variables() )
     
-        features, label = self.inputs( train_file_name, train_batch_size )
-        total_loss = self.loss( features, label ) 
-        train_op = self.train( total_loss )
+        feature_batch, label_batch = self.inputs( train_file_name, train_batch_size )
+        train_op = self.train( feature_batch, label_batch )
         
         coord = tf.train.Coordinator() 
         threads = tf.train.start_queue_runners( sess = self._sess, coord = coord ) 
@@ -50,19 +49,19 @@ class ML_Model:
 
                 # 查看训练过程损失递减
                 if step % 10 == 0:
-                    echo_tensor( self._sess, features, 'features_' + str(step) )
-                    echo_tensor( self._sess, label, 'label_' + str(step) )
-                    echo_tensor( self._sess, total_loss, 'step_' + str(step) + ' loss: ' )
+                    echo_tensor( self._sess, feature_batch, 'features_' + str(step) )
+                    echo_tensor( self._sess, label_batch, 'label_' + str(step) )
+                    echo_tensor( self._sess, self._total_loss, 'step_' + str(step) + ' loss: ' )
 
             #print( str(training_steps) + " final loss: ", sess.run([total_loss]) )
-            echo_tensor( self._sess, total_loss, 'training end. step_' + str(step) + ' final loss: ' )
+            echo_tensor( self._sess, self._total_loss, 'training end. step_' + str(step) + ' final loss: ' )
 
             saver = tf.train.Saver()
             save_path = saver.save( self._sess, self.__save_path )
             print('save_path is: ', save_path)
 
             # 模型评估
-            evaluate_result = self.evaluate( features, label ) 
+            evaluate_result = self.evaluate( feature_batch, label_batch ) 
             echo_tensor( self._sess, evaluate_result, 'evaluate_result' )
     
         except tf.errors.OutOfRangeError:
@@ -125,11 +124,12 @@ class ML_Model:
         return features, label
 
     # 训练
-    def train(self, loss):
+    def train(self, feature_batch, label_batch):
+        self._total_loss = self.loss( feature_batch, label_batch ) 
         # loss also is cost
         learning_rate = 0.0000001
         # return tf.train.Optimizer(False, name = 'sample').minimize( loss )  # 会产生： NotImplementedError 异常
-        return tf.train.GradientDescentOptimizer( learning_rate ).minimize( loss )
+        return tf.train.GradientDescentOptimizer( learning_rate ).minimize( self._total_loss )
 
     # 完成学习后，进行效果评估
     def evaluate(self, test_features, test_label):

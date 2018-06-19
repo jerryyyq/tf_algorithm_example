@@ -72,12 +72,14 @@ class Img2TFRecord(object):
 
         Args:
             in_dir:     a directory containing all breed images, it must is a absolute path and must exist.
-            out_dir:    a directory for save tf_records files for output, it must is a absolute path and must exist.
+            out_dir:    a directory for save tf_records files for output, it must is a absolute path.
             image_type: the image's type of input.
 
         Returns:
             none.
         """
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
         self.__in_dir = in_dir
         self.__out_dir = out_dir
@@ -139,7 +141,7 @@ class Img2TFRecord(object):
         record_image = tf.decode_raw(features['image'], tf.uint8)
         label = tf.cast( features['label'], tf.int64 ) # tf.string
 
-        image = tf.reshape(record_image, reshape) # [250, 151, 1]
+        image = tf.reshape( record_image, reshape )  # [250, 151, 1]  # reshape
         image = tf.cast(image, tf.float32) * (1./255)
 
         min_after_dequeue = 10
@@ -151,7 +153,8 @@ class Img2TFRecord(object):
     def __generate_tf_record_files(self, prefix, image_with_breed, resize, channel = 1, one_record_max_imgaes = 1024):
         # delete info file
         info_file = os.path.join(self.__out_dir, prefix + '_record.inf')
-        os.remove(info_file)
+        if os.path.exists(info_file):
+            os.remove(info_file)
 
         # main code
         writer = None
@@ -250,8 +253,8 @@ class Img2TFRecord(object):
 if __name__ == '__main__':
     one_Set = Img2TFRecord('/home/yangyuqi/Downloads/Images', '/tmp/tf_out/tmp1')
 
-    # test renerate function
-    one_Set.generate_tf_record_files( (250, 151) )
+    # test generate function
+    #one_Set.generate_tf_record_files( (250, 151) )
 
     # test read function
     image_batch, label_batch = one_Set.read_train_images_from_tf_records([250, 151, 1], 5)
@@ -264,7 +267,7 @@ if __name__ == '__main__':
 
         for i in range(3):
             img, lab = sess.run([image_batch, label_batch])
-            print(img.shape, lab)
+            print(img, lab)
 
         #关闭线程  
         coord.request_stop()  
