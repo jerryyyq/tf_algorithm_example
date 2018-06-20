@@ -12,6 +12,12 @@ out/
 
 tmp/
 
+tf_record/
+
+model/
+
+data_source/olivettifaces/
+
 __pycache__/
 
 

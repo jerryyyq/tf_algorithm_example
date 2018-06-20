@@ -164,7 +164,9 @@ def train_facedata(dataset, model_dir,model_path):
     with tf.Session() as session:
         # 若不存在模型数据，需要训练模型参数
         if not os.path.exists(model_path + ".index"):
-            session.run(tf.global_variables_initializer())
+            # session.run(tf.global_variables_initializer())
+            session.run(tf.initialize_all_variables() )
+            
             best_loss = float('Inf')
             for epoch in range(20):
                 epoch_loss = 0

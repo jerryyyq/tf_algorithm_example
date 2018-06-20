@@ -91,7 +91,7 @@ class Img2TFRecord(object):
         """generate tf_record files to out_dir.
 
         Args:
-            resize:                 example: (250, 151)
+            resize:                 (width, height). example: (250, 151)
             channel:                record images channel of output -> 1 = Gray Scale Image; 3 = RGB; 4 = RGBA.
             one_record_max_imgaes:  the max image amount of one tf_record file.
 
@@ -107,10 +107,28 @@ class Img2TFRecord(object):
 
 
     def read_train_images_from_tf_records(self, reshape, batch_size):
+        """batch read train images from tf_record files. And convert image data to 0.0 ~ 1.0 
+        Args:
+            reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
+            batch_size:     how much images in one batch, example: 10.
+
+        Returns:
+            image_batch, label_batch
+        """
+
         records_path = os.path.join(self.__out_dir, 'train_*.tfr')
         return self.read_images_from_tf_records(records_path, reshape, batch_size)
 
     def read_test_images_from_tf_records(self, reshape, batch_size):
+        """batch read test images from tf_record files. And convert image data to 0.0 ~ 1.0 
+        Args:
+            reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
+            batch_size:     how much images in one batch, example: 10.
+
+        Returns:
+            image_batch, label_batch
+        """
+
         records_path = os.path.join(self.__out_dir, 'test_*.tfr')
         return self.read_images_from_tf_records(records_path, reshape, batch_size)
     
@@ -227,6 +245,7 @@ class Img2TFRecord(object):
 
         # get all jpg files absolute path list
         image_file_names = glob.glob( self.__in_dir + '/*/*.' + self.__image_type )
+        image_file_names.sort()
 
         index = 0
         for i, file_path in enumerate(image_file_names):
