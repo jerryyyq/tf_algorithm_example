@@ -35,7 +35,7 @@
 
 
     out_dir will save output tf_redores files, it will include 
-    training files and test files and lable file, 
+    training files and test files and label file, 
     the test images accounts for 20% of the total accounts.
     ????_record.inf include the image's amount of every record file.
     The directory like below:
@@ -60,6 +60,7 @@ import glob, os
 import datetime
 import tensorflow as tf
 from PIL import Image
+
 
 # because my tensorflow is CPU version, it running will report 'warning', write below line for disable this 'warning'.
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -106,41 +107,48 @@ class Img2TFRecord(object):
         print( "generate_tf_record_files file finish.\n" )
 
 
-    def read_train_images_from_tf_records(self, reshape, batch_size):
+    def read_train_images_from_tf_records( self, batch_size, reshape, label_size = 0 ):
         """batch read train images from tf_record files. And convert image data to 0.0 ~ 1.0 
         Args:
+            batch_size:     how many images in one batch, example: 10
             reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
-            batch_size:     how much images in one batch, example: 10.
+            label_size:     how many class of total label, example: 40
 
         Returns:
-            image_batch, label_batch
+            image_batch(float32), label_batch(float32)
+            if label_size > 0 then: label_batch is one hot type, example: [batch_size][0] == [0., 0., 1., 0., 0.], [batch_size][1] == [0., 0., 0., 1., 0.]
+            else: label_batch only label number, example: [batch_size][0] == 2., [batch_size][1] == 3.
         """
 
         records_path = os.path.join(self.__out_dir, 'train_*.tfr')
-        return self.read_images_from_tf_records(records_path, reshape, batch_size)
+        return self.read_images_from_tf_records(records_path, batch_size, reshape, label_size)
 
-    def read_test_images_from_tf_records(self, reshape, batch_size):
+    def read_test_images_from_tf_records( self, batch_size, reshape, label_size = 0 ):
         """batch read test images from tf_record files. And convert image data to 0.0 ~ 1.0 
         Args:
+            batch_size:     how many images in one batch, example: 10
             reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
-            batch_size:     how much images in one batch, example: 10.
+            label_size:     how many class of total label, example: 40
 
         Returns:
-            image_batch, label_batch
+            image_batch(float32), label_batch(float32)
+            if label_size > 0 then: label_batch is one hot type, example: [batch_size][0] == [0., 0., 1., 0., 0.], [batch_size][1] == [0., 0., 0., 1., 0.]
+            else: label_batch only label number, example: [batch_size][0] == 2., [batch_size][1] == 3.
         """
 
         records_path = os.path.join(self.__out_dir, 'test_*.tfr')
-        return self.read_images_from_tf_records(records_path, reshape, batch_size)
+        return self.read_images_from_tf_records(records_path, batch_size, reshape, label_size)
     
 
     @staticmethod
-    def read_images_from_tf_records(records_path, reshape, batch_size):
+    def read_images_from_tf_records( records_path, batch_size, reshape, label_size = 0 ):
         """batch read images from tf_record files. And convert image data to 0.0 ~ 1.0 
 
         Args:
             records_path:   example: '/tmp/tf_out/tmp1/train_*.tfr'
+            batch_size:     how many images in one batch, example: 10
             reshape:        [height, width, channel], must be equal image size. example: [250, 151, 1]
-            batch_size:     how much images in one batch, example: 10.
+            label_size:     how many class of total label, example: 40
 
         Returns:
             image_batch, label_batch
@@ -163,6 +171,11 @@ class Img2TFRecord(object):
 
         image = tf.reshape( record_image, reshape )  # [250, 151, 1]  # reshape
         image = tf.cast(image, tf.float32) * (1./255)
+
+        if 0 < label_size:
+            label = tf.one_hot(label, label_size, 1, 0)
+
+        label = tf.cast( label, tf.float32 )
 
         min_after_dequeue = 10
         capacity = min_after_dequeue + 3 * batch_size
