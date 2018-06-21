@@ -197,8 +197,8 @@ def do_verify(model_dir):    # 'model/olivettifaces'
     verify_image_batch, verify_label_batch = one_set.read_test_images_from_tf_records(batch_size, [57, 47, 1], 40)  # height, width, channel
 
     calculate_label = do_recognition(verify_image_batch, 40, 1)
-    correct = tf.equal(tf.argmax(calculate_label, tf.argmax(verify_label_batch, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+    correct = tf.equal( tf.argmax(calculate_label, tf.argmax(verify_label_batch, 1)) )
+    accuracy = tf.reduce_mean( tf.cast(correct, 'float') )
 
     # 用于保存训练结果的对象
     saver = tf.train.Saver()
