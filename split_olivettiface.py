@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 
-img = Image.open("olivettifaces.gif")
+img = Image.open("data_source/olivettifaces.gif")
 
 label = 0
 index = 0

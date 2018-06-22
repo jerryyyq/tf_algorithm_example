@@ -2,11 +2,11 @@ checkpoint
 
 .ipynb_checkpoints/
 
-imagenet-dogs/
-
 record_files/
 
 my_graph*/
+
+graph/
 
 out/
 
