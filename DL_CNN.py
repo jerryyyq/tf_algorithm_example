@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from img_to_tf_record import Img2TFRecord
 
-
+# CNN 图像识别基类，派生类可以通过重写 _convolutional_neural_network 函数来构建自己的 CNN 模型
 class DL_CNN:
     ####################### 构造与析构函数 #######################
     def __init__(self, tf_record_dir, image_height, image_width, image_channel, class_size, model_file = '', graph_dir = '' ):
@@ -226,26 +226,14 @@ class DL_CNN:
 
 
     ''''' 
-    创建卷积层 
+    创建卷积层。派生类主要可以重写这个函数来实现自己的 DL 模型 
     @:param data           输入图像 
     @:param class_size     总共有多少个类别 
-    @:param image_channel        图像的通道数是多少
+    @:param image_channel  图像的通道数是多少
     @:return Tensor        计算出的 label(one hot 格式)
     ''' 
     @staticmethod
     def _convolutional_neural_network(data, class_size, image_channel):
-        '''
-        使用tf创建3层cnn，5 * 5 的 filter，输入为灰度，所以：
-
-        第一层的 channel 是 1，图像宽高为 57，输出 32 个 filter，maxpooling 是缩放一倍
-        第二层的输入为 32 个 channel，宽高是 32，输出为 64 个 filter，maxpooling 是缩放一倍
-        第三层的输入为 64 个 channel，宽高是 16，输出为 64 个 filter，maxpooling 是缩放一倍
-
-        所以最后输入的图像是 8 * 8 * 64，卷积层和全连接层都设置了 dropout 参数
-
-        将输入的 8 * 8 * 64 的多维度，进行 flatten，映射到 1024 个数据上，然后进行 softmax，输出到 onehot 类别上，类别的输入根据采集的人员的个数来确定。
-        '''  
-
         # 经过第一层卷积神经网络后，得到的张量shape为：[batch_size, 29, 24, 32]
         layer1_output = DL_CNN._convolutional_layer(
             layer_index = 1, 
@@ -300,13 +288,20 @@ class DL_CNN:
 
 
 
-
-
 if __name__ == '__main__':
-    one_cnn = DL_CNN('tf_record/olivettifaces', 57, 47, 1, 40)
+    image_height = 57
+    image_width = 47
+    image_channel = 1
+    one_cnn = DL_CNN('tf_record/olivettifaces', image_height, image_width, image_channel, 40)
+
+    # 下面这三个场景不能同时运行，每次只能运行一个场景
+    # 场景一：使用训练数据进行模型训练
     one_cnn.train(500, 320)
+
+    # 场景二：使用验证数据来校验训练好的模型的准确率
     # one_cnn.verify(80, 10)
 
+    # 场景三：使用训练好的模型来识别一个图片的类型
     '''
     import numpy as np
     from PIL import Image
@@ -314,8 +309,8 @@ if __name__ == '__main__':
     img = Image.open('data_source/olivettifaces/03/2.gif')
     img_ndarray = np.asarray(img, dtype='float32') / 256
 
-    batch_one_image = np.empty((1, image_height, image_width, channel))
-    batch_one_image[0] = img_ndarray.reshape(image_height, image_width, channel)
+    batch_one_image = np.empty((1, image_height, image_width, image_channel))
+    batch_one_image[0] = img_ndarray.reshape(image_height, image_width, image_channel)
 
     tensor_one_image = tf.convert_to_tensor(batch_one_image)
     tensor_one_image = tf.cast(tensor_one_image, tf.float32)

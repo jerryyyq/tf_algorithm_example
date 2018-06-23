@@ -50,54 +50,54 @@ def linear_layer(linear_index, data, weights_size, biases_size):
 ''' 
 def convolutional_neural_network(data, class_size, channel):
     '''
-    使用tf创建3层cnn，5 * 5 的 filter，输入为灰度，所以：
+    使用 tf 创建 2 层 cnn，5 * 5 的 filter，输入为灰度，所以：
 
-    第一层的 channel 是 1，图像宽高为 57，输出 32 个 filter，maxpooling 是缩放一倍
-    第二层的输入为 32 个channel，宽高是 32，输出为 64 个 filter，maxpooling 是缩放一倍
-    第三层的输入为 64 个channel，宽高是 16，输出为 64 个 filter，maxpooling 是缩放一倍
+    第一层的 channel 是 1，图像高为 57，宽为 47, 输出 32 个 filter，maxpooling 是缩放一倍
+    第二层的输入为 32 个channel，高是 29，宽为 24, 输出为 64 个 filter，maxpooling 是缩放一倍
 
-    所以最后输入的图像是 8 * 8 * 64，卷积层和全连接层都设置了 dropout 参数
+    全连接层的输入为 64 个channel，高是 15，宽为 12, 将输入的 15 * 12 * 64 的多维度，
+    进行 flatten，映射到 1024 个数据上，
+    输出层的输入为 1024 个数据，映射到 onehot 类别上，最后输出的向量 shape 为：[batch_size, class_size]
+    '''
 
-    将输入的 8 * 8 * 64 的多维度，进行 flatten，映射到 1024 个数据上，然后进行 softmax，输出到 onehot 类别上，类别的输入根据采集的人员的个数来确定。
-    '''  
-
-    # 经过第一层卷积神经网络后，得到的张量shape为：[batch_size, 29, 24, 32]
+    # 输入样本为：[batch_size, 57, 47, 1]
+    # 经过第一层卷积神经网络后，得到的张量 shape 为：[batch_size, 29, 24, 32]
     layer1_output = convolutional_layer(
-        layer_index=1, 
-        data=data,
-        kernel_size=[5, 5, channel, 32],
-        bias_size=[32],
-        pooling_size=[1, 2, 2, 1]   # 用 2x2 模板做池化
+        layer_index = 1, 
+        data = data,
+        kernel_size = [5, 5, channel, 32],
+        bias_size = [32],
+        pooling_size = [1, 2, 2, 1]   # 用 2x2 模板做池化
     )
 
-    # 经过第二层卷积神经网络后，得到的张量shape为：[batch_size, 15, 12, 64]
+    # 经过第二层卷积神经网络后，得到的张量 shape 为：[batch_size, 15, 12, 64]
     layer2_output = convolutional_layer(
-        layer_index=2,
-        data=layer1_output,
-        kernel_size=[5, 5, 32, 64],
-        bias_size=[64],
-        pooling_size=[1, 2, 2, 1]
+        layer_index = 2,
+        data = layer1_output,
+        kernel_size = [5, 5, 32, 64],
+        bias_size = [64],
+        pooling_size = [1, 2, 2, 1]
     )
 
-    # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量
-    layer2_output_flatten = tf.contrib.layers.flatten(layer2_output)
+    # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量，得到的张量 shape 为：[batch_size, 1024]
+    layer2_output_flatten = tf.contrib.layers.flatten(layer2_output)  # 得到的张量 shape 为：[batch_size, 15 * 12 * 64]
     layer3_output = tf.nn.relu(
         linear_layer(
-            linear_index=1,
-            data=layer2_output_flatten,
-            weights_size=[15 * 12 * 64, 1024],
-            biases_size=[1024]
+            linear_index = 1,
+            data = layer2_output_flatten,
+            weights_size = [15 * 12 * 64, 1024],
+            biases_size = [1024]
         )
     )
     # 减少过拟合，随机让某些权重不更新
     # layer3_output = tf.nn.dropout(layer3_output, 0.8)
     
-    # 输出层
+    # 输出层，得到的张量 shape 为：[batch_size, class_size]
     output = linear_layer(
-        linear_index=2,
-        data=layer3_output,
-        weights_size=[1024, class_size],      # 根据类别个数定义最后输出层的神经元
-        biases_size=[class_size]
+        linear_index = 2,
+        data = layer3_output,
+        weights_size = [1024, class_size],      # 根据类别个数定义最后输出层的神经元
+        biases_size = [class_size]
     )
 
     return output
