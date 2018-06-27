@@ -6,7 +6,7 @@ import tensorflow as tf
 #-------------------------------数据预处理---------------------------#  
     
 poetry_file = 'data_source/poetry.txt'  
-MODEL_FILE = 'module/poetry/best.ckpt'
+MODEL_FILE = 'model/poetry/best.ckpt'
     
 # 诗集  
 poetrys = []  
@@ -51,7 +51,7 @@ poetrys_vector = [ list(map(to_num, poetry)) for poetry in poetrys]
 # 每次取64首诗进行训练  
 batch_size = 64  
 n_chunk = len(poetrys_vector) // batch_size  # 一共有多少个块
-x_batches = []  
+x_batches = []  # shape: [n_chunk, batch_size, length]
 y_batches = []  
 for i in range(n_chunk):  
     start_index = i * batch_size  
@@ -73,8 +73,8 @@ for i in range(n_chunk):
     y_batches.append(ydata)  
     
     
-#---------------------------------------RNN--------------------------------------#  
-    
+#---------------------------------------RNN--------------------------------------#
+
 input_data = tf.placeholder(tf.int32, [batch_size, None])  
 output_targets = tf.placeholder(tf.int32, [batch_size, None])  
 # 定义RNN  
@@ -92,21 +92,25 @@ def neural_network(model='lstm', rnn_size=128, num_layers=2):
     initial_state = cell.zero_state(batch_size, tf.float32)  
     
     with tf.variable_scope('rnnlm'):  
-        softmax_w = tf.get_variable("softmax_w", [rnn_size, len(words)+1])  
+        softmax_w = tf.get_variable("softmax_w", [rnn_size, len(words)+1])  # 此处应该不需要 +1, 猜测是原作者考虑到在 words 最后添加的 ' ', 但其实此时空格已经计算在内了
         softmax_b = tf.get_variable("softmax_b", [len(words)+1])  
-        with tf.device("/cpu:0"):  
-            embedding = tf.get_variable("embedding", [len(words)+1, rnn_size])  # 此时，这个 Tensor 是储存在内存里的，而非显存里。
-            inputs = tf.nn.embedding_lookup(embedding, input_data)
+        with tf.device("/cpu:0"):    # 此时，下面的 Tensor 是储存在内存里的，而非显存里。
+            embedding = tf.get_variable("embedding", [len(words)+1, rnn_size])    # embedding shape: [len(words)+1, rnn_size] 个 -1 ~ 1 之间的随机唯一值
+            inputs = tf.nn.embedding_lookup(embedding, input_data)  # input_data shape: [batch_size, length]；inputs shape: [batch_size, length, rnn_size]
     
     outputs, last_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, scope='rnnlm')  
-    output = tf.reshape(outputs,[-1, rnn_size])  
+    output = tf.reshape(outputs,[-1, rnn_size])
     
     logits = tf.matmul(output, softmax_w) + softmax_b  
-    probs = tf.nn.softmax(logits)  
-    return logits, last_state, probs, cell, initial_state  
+    probs = tf.nn.softmax(logits)
+    return logits, last_state, probs, cell, initial_state
+
+
 #训练  
 def train_neural_network():  
-    logits, last_state, _, _, _ = neural_network()  
+    logits, last_state, _, _, _ = neural_network()
+    last_state = tf.convert_to_tensor(last_state)  # 不要放在循环中，类似的还有 tf.train.Saver()。其他 tf.zeros_like(), tf.ones_like() 都不要放循环里
+
     targets = tf.reshape(output_targets, [-1])  
     loss = tf.nn.seq2seq.sequence_loss_by_example([logits], [targets], [tf.ones_like(targets, dtype=tf.float32)], len(words))  
     cost = tf.reduce_mean(loss)  
@@ -115,17 +119,17 @@ def train_neural_network():
     grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), 5)  
     optimizer = tf.train.AdamOptimizer(learning_rate)  
     train_op = optimizer.apply_gradients(zip(grads, tvars))  
-    
+
+    saver = tf.train.Saver()
+   
     with tf.Session() as sess:  
         sess.run(tf.initialize_all_variables())  
     
-        saver = tf.train.Saver(tf.all_variables())  
-    
-        for epoch in range(50):  
+        for epoch in range(50):     # 对全部数据进行 50 轮次重复训练
             sess.run(tf.assign(learning_rate, 0.002 * (0.97 ** epoch)))  
             n = 0  
-            for batche in range(n_chunk):  
-                train_loss, _ , _ = sess.run([cost, tf.convert_to_tensor(last_state), train_op], feed_dict={input_data: x_batches[n], output_targets: y_batches[n]})  
+            for batche in range(n_chunk):  # 按 batch_size 对全部数据分批进行一轮训练
+                train_loss, _ , _ = sess.run([cost, last_state, train_op], feed_dict={input_data: x_batches[n], output_targets: y_batches[n]})  
                 n += 1  
                 print(epoch, batche, train_loss)  
             if epoch % 7 == 0:  
