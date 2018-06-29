@@ -80,16 +80,18 @@ output_targets = tf.placeholder(tf.int32, [batch_size, None])
 # 定义RNN  
 def neural_network(model='lstm', rnn_size=128, num_layers=2):  
     if model == 'rnn':  
-        cell_fun = tf.nn.rnn_cell.BasicRNNCell  
+        cell_fun = tf.nn.rnn_cell.BasicRNNCell       # 有文章说 1.0 tf.nn.rnn_cell -> tf.contrib.rnn，但好像不需要
     elif model == 'gru':  
-        cell_fun = tf.nn.rnn_cell.GRUCell  
+        cell_fun = tf.nn.rnn_cell.GRUCell 
     elif model == 'lstm':  
-        cell_fun = tf.nn.rnn_cell.BasicLSTMCell  
+        cell_fun = tf.nn.rnn_cell.BasicLSTMCell
     
     cell = cell_fun(rnn_size, state_is_tuple=True)  
-    cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)  
+    cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
     
-    initial_state = cell.zero_state(batch_size, tf.float32)  
+    initial_state = cell.zero_state(batch_size, tf.float32)    # shape: [64, 128]   值为 全 0.0
+    print('initial_state', initial_state)   # Tuple( LSTMStateTuple(c=shape=(64, 128), h=shape=(64, 128)), LSTMStateTuple(c=shape=(64, 128), h=shape=(64, 128)) )
+    # initial_state = tf.Print(initial_state, [initial_state], 'initial_state', 20, 7)  会导致后面 dynamic_rnn 报错，为什么？
     
     with tf.variable_scope('rnnlm'):  
         softmax_w = tf.get_variable("softmax_w", [rnn_size, len(words)+1])  # 此处应该不需要 +1, 猜测是原作者考虑到在 words 最后添加的 ' ', 但其实此时空格已经计算在内了
@@ -97,9 +99,16 @@ def neural_network(model='lstm', rnn_size=128, num_layers=2):
         with tf.device("/cpu:0"):    # 此时，下面的 Tensor 是储存在内存里的，而非显存里。
             embedding = tf.get_variable("embedding", [len(words)+1, rnn_size])    # embedding shape: [len(words)+1, rnn_size] 个 -1 ~ 1 之间的随机唯一值
             inputs = tf.nn.embedding_lookup(embedding, input_data)  # input_data shape: [batch_size, length]；inputs shape: [batch_size, length, rnn_size]
+            inputs = tf.Print(inputs, [inputs], 'inputs')
     
-    outputs, last_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, scope='rnnlm')  
-    output = tf.reshape(outputs,[-1, rnn_size])
+    with tf.control_dependencies([tf.Print(initial_state, [initial_state], "initial_state")]):  # [0, 0, 0, ......]
+        outputs, last_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, scope='rnnlm')  # outputs shape=(64, ?, 128)
+
+    print('outpurs: ', outputs)
+    outputs = tf.Print(outputs, [outputs], 'outputs', 20, 7)
+    output = tf.reshape(outputs,[-1, rnn_size])   # output shape=(?, 128)
+    print('output: ', output)
+    output = tf.Print(output, [output], 'output')
     
     logits = tf.matmul(output, softmax_w) + softmax_b  
     probs = tf.nn.softmax(logits)
@@ -112,7 +121,7 @@ def train_neural_network():
     last_state = tf.convert_to_tensor(last_state)  # 不要放在循环中，类似的还有 tf.train.Saver()。其他 tf.zeros_like(), tf.ones_like() 都不要放循环里
 
     targets = tf.reshape(output_targets, [-1])  
-    loss = tf.nn.seq2seq.sequence_loss_by_example([logits], [targets], [tf.ones_like(targets, dtype=tf.float32)], len(words))  
+    loss = tf.nn.seq2seq.sequence_loss_by_example([logits], [targets], [tf.ones_like(targets, dtype=tf.float32)], len(words))  # 1.0 -> tf.contrib.legacy_seq2seq.sequence_loss_by_example
     cost = tf.reduce_mean(loss)  
     learning_rate = tf.Variable(0.0, trainable=False)  
     tvars = tf.trainable_variables()  
@@ -121,9 +130,9 @@ def train_neural_network():
     train_op = optimizer.apply_gradients(zip(grads, tvars))  
 
     saver = tf.train.Saver()
-   
+
     with tf.Session() as sess:  
-        sess.run(tf.initialize_all_variables())  
+        sess.run(tf.initialize_all_variables())  # 1.0 -> sess.run(tf.global_variables_initializer())
     
         for epoch in range(50):     # 对全部数据进行 50 轮次重复训练
             sess.run(tf.assign(learning_rate, 0.002 * (0.97 ** epoch)))  
@@ -145,16 +154,16 @@ def gen_poetry():
     def to_word(weights):  
         t = np.cumsum(weights)  
         s = np.sum(weights)  
-        sample = int(np.searchsorted(t, np.random.rand(1)*s))  
+        sample = int(np.searchsorted(t, np.random.rand(1)*s))    # sample = int(np.searchsorted(t, np.random.rand(1)*s)) 
         return words[sample]  
    
-    _, last_state, probs, cell, initial_state = neural_network()  
-   
+    _, last_state, probs, cell, initial_state = neural_network()
+
+    saver = tf.train.Saver(tf.all_variables())
     with tf.Session() as sess:  
-        sess.run(tf.initialize_all_variables())  
+        sess.run(tf.initialize_all_variables())    # 1.0 -> sess.run(tf.global_variables_initializer())
    
-        saver = tf.train.Saver(tf.all_variables())  
-        saver.restore(sess, MODEL_FILE + '-49')  
+        saver.restore( sess, MODEL_FILE + '-49' )  
    
         state_ = sess.run(cell.zero_state(1, tf.float32))  
    
@@ -184,7 +193,7 @@ def gen_poetry_with_head(head):
     _, last_state, probs, cell, initial_state = neural_network()  
    
     with tf.Session() as sess:  
-        sess.run(tf.initialize_all_variables())  
+        sess.run(tf.initialize_all_variables())     # 1.0 -> sess.run(tf.global_variables_initializer())
    
         saver = tf.train.Saver(tf.all_variables())  
         saver.restore(sess, MODEL_FILE + '-49')  
@@ -212,10 +221,10 @@ def gen_poetry_with_head(head):
 if __name__ == '__main__':
     # 下面这三个场景不能同时运行，每次只能运行一个场景
     # 场景一：使用训练数据进行模型训练
-    train_neural_network() 
+    # train_neural_network() 
 
     # 场景二：使用验证数据来生成
-    # print(gen_poetry())
+    print(gen_poetry())
 
     # 场景三：使用训练好的模型来生成藏头诗
     # print(gen_poetry_with_head('一二三四'))

@@ -148,7 +148,7 @@ def gen_poetry():
         with tf.device('/gpu:1'): 
             
             sess.run(tf.initialize_all_variables())  
-       
+
             saver = tf.train.Saver(tf.all_variables())  
             saver.restore(sess, 'model/poetry.module-99')  
        
