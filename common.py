@@ -1,5 +1,6 @@
 import os
 import numpy
+import collections
 import tensorflow as tf
 
 
@@ -55,6 +56,70 @@ def dense_to_one_hot(labels_dense, num_classes):
     labels_one_hot.flat[index_offset + labels_dense.ravel()] = 1
     labels_one_hot = labels_one_hot.astype(numpy.int32)
     return labels_one_hot
+
+'''
+所有的不重复的字，按出现次数从高到低排序后，将他们映射为： 0 ～ 字数 - 1 的映射字典
+例如： 
+all_words = ['b', 'c', 'a', 'f', 'd', 'c', 'a', 'e']
+return: {'a': 1, 'b': 5, 'c': 0, 'd': 4, 'e': 3, 'f': 2}
+'''
+def all_words_to_word_num_map( all_words ):
+    counter = collections.Counter(all_words)
+    count_pairs = sorted(counter.items(), key=lambda x: -x[1])
+    words, _ = zip(*count_pairs)
+
+    # 每个字映射为一个数字ID
+    return dict(zip(words, range(len(words))))
+
+
+'''
+将句子列表中的所有字符，替换为 map 中的向量值
+例如： 
+sentence_list = ['bbaa', 'ceff', 'ade']
+word2vec_map = {'a': 1, 'b': 5, 'c': 0, 'd': 4, 'e': 3, 'f': 2}
+return: [[5, 5, 1, 1], [0, 3, 2, 2], [1, 4, 3]]
+'''
+def words_to_vectors(sentence_list, word2vec_map):
+    return [ list(map(lambda word: word2vec_map[word], sentence)) for sentence in sentence_list ]
+
+
+'''
+将句子列表按 batch_size 分批整理为 RNN 需要的数据序列。每个的元素的长度按每分批里的最长元素长度，不同的分批长度不同
+sentence_vec_list：原始数据，一般为已转为向量的所有输入内容
+batch_size：一批数据有多少个。在 NLP 中一般值的是一批处理多少个句子
+fill_value：对长度不足的元素，用什么值来填充
+
+例如：
+sentence_vec_list = [[5, 5, 1, 1], [0, 3, 2], [1, 4, 3], [2, 5, 6, 7, 8, 9, 3]]
+batch_size = 2
+fill_value = 999
+
+return x_batches: [[[5, 5, 1, 1], [0, 3, 2, 999]], [[1, 4, 3, 999, 999, 999, 999], [2, 5, 6, 7, 8, 9, 3]]]
+       y_batches: [[[5, 1, 1, 1], [3, 2, 999, 999]], [[4, 3, 999, 999, 999, 999, 999], [5, 6, 7, 8, 9, 3, 3]]]
+'''
+def sentence_list_to_x_y_batches(sentence_vec_list, batch_size, fill_value):
+    n_chunk = len(sentence_vec_list) // batch_size  # 一共有多少个块
+    x_batches = []  # shape: [n_chunk, batch_size, length]
+    y_batches = []
+
+    for i in range(n_chunk):  
+        start_index = i * batch_size  
+        end_index = start_index + batch_size  
+        
+        batches = sentence_vec_list[start_index : end_index]  
+        length = max(map(len, batches))                        # 本 batche 中最长的句子的长度
+
+        xdata = [[fill_value] * length for row in range(batch_size)]
+        for row in range(batch_size):  
+            xdata[row][:len(batches[row])] = batches[row]
+
+        ydata = [[*xdata[i][1:], xdata[i][-1]] for i in range(len(xdata))]
+
+        x_batches.append(xdata)                               # 所有的句子，但其中每 batche 一组，每一组的长度是一样的
+        y_batches.append(ydata)
+
+    return x_batches, y_batches 
+
 
 
 # dataset 是个二维数组，第一维度为所有的品种，第二个维度为该品种下的所有的图片的文件名
