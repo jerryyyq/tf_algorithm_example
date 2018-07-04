@@ -52,18 +52,22 @@ def get_contents_from_poetry_file(poetry_file):
     return poetrys
 
 
-
+# x_batches、 x_batches shape: [n_chunk, batch_size, length]
 def get_x_and_y_batche_from_poetry_file(poetry_file, batch_size):
     poetrys = get_contents_from_poetry_file(poetry_file)
     all_words = content_list_to_all_words(poetrys)
 
     # 添加用于补位的特殊字符
     all_words += FILL_WORD
-
     print('总字数: ', len(all_words))
+
+    # words = 列表：所有的不重复的字，按出现次数从高到低排序，words = ('，', '。', ']', '[', '不', '人', '山', '风', '日', '无', '一', ...... '幺', FILL_WORD) 共 6110 个
+    # word_num_map = {'庸': 2601, '纚': 4887, '惠': 1237, ..., '，': 0, ..., FILL_WORD: 6109, ..., '幺': 6108}
     words, word2vec_map = all_words_to_word_num_map(all_words)
 
+    # poetrys_vector = [[3, 28, 544, 104, 720, 1, 2], [3, 649, 48, 9, 2147, 1, 2], [3, 424, 4867, 2127, 1100, 1, 2], [3, 345, 1146, 2615, 2671, 1, 2], [3, 822, 10, 1366, 332, 1, 2], ......]
     poetrys_vector = words_to_vectors(poetrys, word2vec_map)
+
     return (words, word2vec_map, *sentence_list_to_x_y_batches(poetrys_vector, batch_size, word2vec_map[FILL_WORD]) )
 
     
@@ -176,7 +180,7 @@ def weights_to_word(weights, words):
 
 
 # 使用训练完成的模型
-def gen_poetry(poetry_file):
+def gen_poetry(poetry_file, begin_word = '['):
     batch_size = 1
     words, word2vec_map, x_batches, y_batches = get_x_and_y_batche_from_poetry_file(poetry_file, batch_size)
     vector_number = len(words)
@@ -197,11 +201,13 @@ def gen_poetry(poetry_file):
    
         saver.restore( sess, MODEL_FILE )
 
-        state_ = sess.run(cell.zero_state(batch_size, tf.float32))  
-   
-        x = [[word2vec_map['[']] for i in range(batch_size)]     # x = np.array([list(map(word2vec_map.get, '['))])  
-        [probs_, state_] = sess.run([probs, last_state], feed_dict={input_data: x, initial_state: state_})  
+        state_ = sess.run(cell.zero_state(batch_size, tf.float32))
+
+        x = [[word2vec_map['[']] for i in range(batch_size)]   #  x = np.array([list(map(word2vec_map.get, '['))])  
+        [probs_, state_] = sess.run( [probs, last_state], feed_dict={input_data: x, initial_state: state_} )  
         word = weights_to_word(probs_, words)
+
+
         #word = words[np.argmax(probs_)]
         poem = ''  
         while word != ']':
@@ -234,7 +240,7 @@ def gen_poetry_with_head(poetry_file, head):
             sess.run(tf.global_variables_initializer())
 
         saver.restore(sess, MODEL_FILE)  
-   
+
         state_ = sess.run(cell.zero_state(1, tf.float32))
         poem = ''  
         i = 0  
@@ -249,7 +255,8 @@ def gen_poetry_with_head(poetry_file, head):
                 poem += '，'  
             else:  
                 poem += '。'  
-            i += 1  
+            i += 1
+
         return poem  
 
 
@@ -261,7 +268,7 @@ if __name__ == '__main__':
     # train_neural_network(POETRY_FILE, 50, 64)
 
     # 场景二：使用验证数据来生成
-    # print(gen_poetry(POETRY_FILE))
+    print(gen_poetry(POETRY_FILE, '我'))
 
     # 场景三：使用训练好的模型来生成藏头诗
-    print( gen_poetry_with_head(POETRY_FILE, '一二三四') )
+    # print( gen_poetry_with_head(POETRY_FILE, '一二三四') )
