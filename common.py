@@ -58,10 +58,44 @@ def dense_to_one_hot(labels_dense, num_classes):
     return labels_one_hot
 
 '''
-所有的不重复的字，按出现次数从高到低排序后，将他们映射为： 0 ～ 字数 - 1 的映射字典
-例如： 
+高维数组变为一维数组
+
+例如：
+a = [[['a','b'], ['c', 'd', 'e', 'f']], [[1, 2, 3], [4, 5, 6, 7, 8]]]
+return: ['a', 'b', 'c', 'd', 'e', 'f', 1, 2, 3, 4, 5, 6, 7, 8]
+'''
+def flatten(a):
+    if not isinstance(a, (list, )):
+        return [a]
+    else:
+        b = []
+        for item in a:
+            b += flatten(item)
+    
+    return b
+
+
+'''
+将多维内容列表里的所有字符串展开成为一个一维字符列表
+例如：
+content_list = [[['a','d'], ['cdd', 'ef']], [['12', '1'], ['4567', '4']]]
+return: ['a', 'd', 'c', 'd', 'd', 'e', 'f', '1', '2', '1', '4', '5', '6', '7', '4']
+'''
+def content_list_to_all_words(content_list):
+    all_words = []
+    contents = flatten(content_list)
+    for item in contents:
+        all_words += [word for word in item]
+
+    return all_words
+
+
+'''
+所有的不重复的字，按出现次数从高到低排序后，将他们映射为： 0 ～ (字数 - 1) 的映射字典
+返回不重复的字的元组和映射的字典
+例如：
 all_words = ['b', 'c', 'a', 'f', 'd', 'c', 'a', 'e']
-return: {'a': 1, 'b': 5, 'c': 0, 'd': 4, 'e': 3, 'f': 2}
+return: (('c', 'a', 'b', 'f', 'd', 'e'), {'c': 0, 'a': 1, 'b': 2, 'f': 3, 'd': 4, 'e': 5})
 '''
 def all_words_to_word_num_map( all_words ):
     counter = collections.Counter(all_words)
@@ -69,7 +103,7 @@ def all_words_to_word_num_map( all_words ):
     words, _ = zip(*count_pairs)
 
     # 每个字映射为一个数字ID
-    return dict(zip(words, range(len(words))))
+    return words, dict(zip(words, range(len(words))))
 
 
 '''
