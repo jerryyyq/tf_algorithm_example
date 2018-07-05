@@ -172,10 +172,26 @@ def train_neural_network(poetry_file, train_wheels, batch_size):
 
 
 #-------------------------------生成古诗---------------------------------#  
-def weights_to_word(weights, words):  
-    t = np.cumsum(weights)
+def weights_to_word(weights, words):
+    print('weights : ', weights, '\n')
+    print('weights[-1] : ', weights[-1], '\n')
+
+    '''
+    np.cumsum(一维和二维结果是相同的)
+    a = [[1,2,3,4,5]], c = [1,2,3,4,5]
+    array([ 1,  3,  6, 10, 15]) == np.cumsum(a) == npmcumsum(c)
+    '''
+    #if len(weights) > 1:
+    t = np.cumsum(weights[-1])
+    #else:
+    #    t = np.cumsum(weights)
+
     s = np.sum(weights)  
     sample = int(np.searchsorted(t, np.random.rand(1)*s))    # sample = int(np.searchsorted(t, np.random.rand(1)*s)) 
+    if sample > len(words) - 1:
+        print('sample = ', sample, '\n')
+        return ' '
+
     return words[sample] 
 
 
@@ -203,13 +219,18 @@ def gen_poetry(poetry_file, begin_word = '['):
 
         state_ = sess.run(cell.zero_state(batch_size, tf.float32))
 
-        x = [[word2vec_map['[']] for i in range(batch_size)]   #  x = np.array([list(map(word2vec_map.get, '['))])  
+
+        poem = ''
+        x = [[word2vec_map['[']] for i in range(batch_size)]
+        if begin_word != '[':
+            x = [[word2vec_map['['], word2vec_map[begin_word]] for i in range(batch_size)]   #  x = np.array([list(map(word2vec_map.get, '['))])
+            poem += begin_word
+        
         [probs_, state_] = sess.run( [probs, last_state], feed_dict={input_data: x, initial_state: state_} )  
         word = weights_to_word(probs_, words)
 
 
         #word = words[np.argmax(probs_)]
-        poem = ''  
         while word != ']':
             poem += word
             x = [[word2vec_map[word]] for i in range(batch_size)]    # 其实可以写为： x = [[word2vec_map[word]]]
@@ -268,7 +289,7 @@ if __name__ == '__main__':
     # train_neural_network(POETRY_FILE, 50, 64)
 
     # 场景二：使用验证数据来生成
-    print(gen_poetry(POETRY_FILE, '我'))
+    print(gen_poetry(POETRY_FILE, '元'))
 
     # 场景三：使用训练好的模型来生成藏头诗
     # print( gen_poetry_with_head(POETRY_FILE, '一二三四') )
