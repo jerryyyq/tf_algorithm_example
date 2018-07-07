@@ -1,7 +1,9 @@
 #coding=utf-8
 
 import collections
-import time  
+import time
+import sys
+import getopt
 import numpy as np
 import tensorflow as tf  
 
@@ -284,12 +286,49 @@ def gen_poetry_with_head(poetry_file, head):
 
 
 if __name__ == '__main__':
+    opts, args = getopt.getopt(sys.argv[1:], "hoct:w:")
+    poem_type = -1       # 0: 训练；1：输出；2：藏头诗
+    train_wheels = 50
+    word = '['
+
+    for op, value in opts:
+        if op == '-t':
+            poem_type = 0
+            train_wheels = int(value)
+        elif op == '-w':
+            word = value
+        elif op == '-o':
+            poem_type = 1
+        elif op == '-c':
+            poem_type = 2
+        elif op == '-h':
+            print('训练 1000 轮：LSTM_poem.py -t 1000')
+            print('随机输出：LSTM_poem.py -o')
+            print('输出以“我”开头的：LSTM_poem.py -o -w 我')
+            print('输出藏头诗：LSTM_poem.py -c -w 一二三四')
+            print('随机输出：LSTM_poem.py -o')
+            sys.exit()
+
+
+    if poem_type == 0:
+        train_neural_network(POETRY_FILE, train_wheels, 64)
+    elif poem_type == 1:
+        print( gen_poetry(POETRY_FILE, word[0]) )
+    elif poem_type == 2:
+        print( gen_poetry_with_head(POETRY_FILE, word) )
+    else:
+        print('训练 1000 轮：LSTM_poem.py -t 1000')
+        print('随机输出：LSTM_poem.py -o')
+        print('输出以“我”开头的：LSTM_poem.py -o -w 我')
+        print('输出藏头诗：LSTM_poem.py -c -w 一二三四')
+        print('随机输出：LSTM_poem.py -o')
+
     # 下面这三个场景不能同时运行，每次只能运行一个场景
     # 场景一：使用训练数据进行模型训练
     # train_neural_network(POETRY_FILE, 50, 64)
 
     # 场景二：使用验证数据来生成
-    print(gen_poetry(POETRY_FILE, '元'))
+    # print(gen_poetry(POETRY_FILE, '元'))
 
     # 场景三：使用训练好的模型来生成藏头诗
     # print( gen_poetry_with_head(POETRY_FILE, '一二三四') )
