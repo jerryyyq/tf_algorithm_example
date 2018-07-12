@@ -28,6 +28,7 @@ RNNCell 是 TensorFlow 中实现 RNN 的基本单元，每个 RNNCell 都有一�
 ## tf.nn.rnn_cell.BasicRNNCell
 是最基本的RNN cell单元
 
+入参：
 - num_units: 是指一个 Cell 中神经元的个数(state_size)，并不是循环层的 Cell 个数。 
 - input_size: 该参数已被弃用。
 - activation: 内部状态之间的激活函数。
@@ -35,7 +36,7 @@ RNNCell 是 TensorFlow 中实现 RNN 的基本单元，每个 RNNCell 都有一�
 
 
 ## tf.nn.rnn_cell.GRUCell
-
+入参：
 - num_units: 是指一个 Cell 中神经元的个数，并不是循环层的 Cell 个数。 
 - input_size: 该参数已被弃用。
 - activation: 内部状态之间的激活函数。
@@ -45,7 +46,7 @@ RNNCell 是 TensorFlow 中实现 RNN 的基本单元，每个 RNNCell 都有一�
 BasicLSTMCell 是最简单的一个 LSTM 类，没有实现 clipping，projection layer，peep-hole 等一些 LSTM 的高级变种，仅作为一个基本的 basicline 结构存在，如果要使用这些高级变种，需用 class tf.contrib.rnn.LSTMCell 这个类。
 
 tf.nn.rnn_cell.BasicLSTMCell(num_units, forget_bias=1.0, state_is_tuple=False)  # tf version 0.9
-
+入参：
 - num_units: 是指一个 Cell 中神经元的个数，并不是循环层的 Cell 个数。
 - forget_bias: 就是 LSTM 们的忘记系数，如果等于 1，就是不会忘记任何信息。如果等于 0，就都忘记。
 - input_size: 该参数已被弃用。
@@ -66,6 +67,7 @@ cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
 
 
 # tf.get_variable(name, shape, initializer)
+入参：
 - name: 变量的名称
 - shape: 变量的维度
 - initializer: 变量初始化的方式，有以下几种（默认为: UniformUnitScalingInitializer）：
@@ -298,9 +300,10 @@ assert (result[0]["outputs"][1, 7, :] == np.zeros(cell.output_size)).all()
 
 # 值打印
 ## tf.Print()
+sess.run() 时才会执行，不会在 Python 解析时执行，而 Print() 是在 Python 语句运行时执行。
 
 ```
-    with tf.control_dependencies([tf.Print(initial_state, [initial_state], "initial_state")]):  # [0, 0, 0, ......]
+    with tf.control_dependencies([tf.Print(initial_state, [initial_state, initial_state.shape, '任何东西'], "initial_state = ")]):  # [0, 0, 0, ......][]
         outputs, last_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, scope='rnnlm')  # outputs shape=(64, ?, 128)
 ```
 
@@ -313,3 +316,65 @@ tfe.enable_eager_execution()
 b = tfe.Variable([[1,2],[3,4]], name='b')
 print( b )
 ```
+
+# tf.nn.softmax
+求取输出属于某一类的概率，对于单样本而言，输出就是一个 num_classes 大小的向量。
+通过 Softmax 回归，将 logistic 的预测二分类的概率的问题推广到了 n 分类的概率的问题。
+当分类的个数变为 2 时，Softmax 回归又退化为 logistic 回归问题。
+
+softmax(logits, axis=None, name=None, dim=None)
+
+入参：
+- logits: 就是神经网络最后一层的输出，如果有 batch 的话，它的大小就是 [batchsize, num_classes]，单样本的话，大小就是 num_classes
+
+返回值：
+一个与输入相同大小的向量，一般为 [batchsize, num_classes]。例如：
+[Y1, Y2, Y3...] 其中 Y1, Y2, Y3... 分别代表了是属于该类的概率
+
+下面的几行代码说明一下用法：
+'''
+import tensorflow as tf
+
+A = [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [1.3, 2.3, 3.3, 3.4, 3.5, 6.0]]
+
+with tf.Session() as sess:
+    print( sess.run(tf.nn.softmax(A)) )
+'''
+
+结果：  
+[[0.00426978 0.01160646 0.03154963 0.08576079 0.233122   0.6336913 ]
+ [0.0072335  0.01966269 0.05344873 0.05906998 0.06528242 0.7953027 ]]
+
+# tf.nn.softmax_cross_entropy_with_logits
+评估计算出的标签的准确度，预测越准确，结果的值越小。
+
+tf.nn.softmax_cross_entropy_with_logits(logits, labels, name=None)
+入参：
+- logits: 用样本计算出的标签，就是神经网络最后一层的输出，如果有 batch 的话，它的大小就是 [batchsize, num_classes]，单样本的话，大小就是 num_classes
+- labels: 样本实际的标签，大小同上。用 mnist 数据举例，如果是 3，那么标签是 [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]，除了第 4 个值为 1，其他全为 0。
+
+返回值：
+交叉熵向量。如果要求交叉熵，我们要再做一步 tf.reduce_sum 操作，就是对向量里面所有元素求和；如果要求 loss，则要做一步 tf.reduce_mean 操作，对向量求均值。
+
+具体的执行流程大概分为两步：
+第一步是先对网络最后一层的输出做一个 softmax，这一步通常是求取输出属于某一类的概率。
+第二步是 softmax 的输出向量 [Y1, Y2, Y3...] 和样本的实际标签做一个交叉熵。
+所以，这个函数其实等同于： labels * tf.log( tf.nn.softmax(logits) )
+
+下面的几行代码说明一下用法：
+'''
+import tensorflow as tf
+predicted_labels = tf.constant([[1.0, 1.1, 4.0], [1.0, 1.2, 5.0], [1.0, 2.0, 8.0]])
+real_labels = tf.constant([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])
+
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=predicted_labels, labels=real_labels)
+loss = tf.reduce_mean(cross_entropy)
+
+with tf.Session() as sess:
+    print( sess.run(cross_entropy) )
+    print( sess.run(loss) )
+'''
+
+结果：
+[0.09967359 0.03988047 0.00338493]
+0.04764633
