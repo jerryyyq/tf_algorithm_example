@@ -114,7 +114,7 @@ class DL_CNN:
                 #'''
                 # 方法一，每一轮比较一次
                 # 共有学习样本 320 个，所以每一轮应该是 320 / batch_size 次
-                if i % (320/batch_size) == 0:
+                if i % (train_sample_number/batch_size) == 0:
                     print(i, ' : ', epoch_loss)
                     if best_loss > epoch_loss:
                         best_loss = epoch_loss
