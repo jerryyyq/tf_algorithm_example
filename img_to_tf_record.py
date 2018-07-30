@@ -234,8 +234,10 @@ class Img2TFRecord(object):
             writer.write(example.SerializeToString())
             image_amount += 1
 
-        writer.close()
-        self.__save_record_info_to_file(prefix, current_index - 1, image_amount)
+        if writer:
+            writer.close()
+            writer = None
+            self.__save_record_info_to_file(prefix, current_index - 1, image_amount)
 
         print( "generate {} record file finish, total {} files.\n".format(prefix, current_index) )
 

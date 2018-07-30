@@ -63,8 +63,12 @@ class DL_CNN:
         loss_out = self._loss(neural_out, label_set)
         optimizer = tf.train.AdamOptimizer(1e-2).minimize(loss_out)     #tf.train.GradientDescentOptimizer(0.01).minimize(loss_out)
         # 将 loss 与 optimizer 保存以供 tensorboard 使用
-        tf.scalar_summary('loss', loss_out)            # 高版本 -> tf.summary.scalar('loss', loss_out)
-        # tf.scalar_summary('optimizer', optimizer)      # 高版本 -> tf.summary.scalar('optimizer', optimizer)
+        if tf.__version__ < '1':
+            tf.scalar_summary('loss', loss_out)
+            # tf.scalar_summary('optimizer', optimizer)
+        else:
+            tf.summary.scalar('loss', loss_out)
+            # tf.summary.scalar('optimizer', optimizer)
 
         ''' 方法二
         verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
@@ -76,16 +80,25 @@ class DL_CNN:
         # 将 accuracy 保存以供 tensorboard 使用
         tf.scalar_summary('accuracy', accuracy)        # 高版本 -> tf.summary.scalar('accuracy', accuracy)
         '''
-
-        merged_summary_op = tf.merge_all_summaries()   # 高版本 -> tf.summary.merge_all()
+        if tf.__version__ < '1':
+            merged_summary_op = tf.merge_all_summaries()
+        else:
+            tf.summary.merge_all()
 
         # 用于保存训练结果的对象
         saver = tf.train.Saver()
 
-        init = tf.initialize_all_variables()   # 高版本 -> tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+        if tf.__version__ < '1':
+            init = tf.initialize_all_variables()
+        else:
+            init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+
         with tf.Session() as sess:
             sess.run(init)
-            summary_writer = tf.train.SummaryWriter(self._graph_dir, sess.graph) # 高版本 -> tf.summary.FileWriter('my_graph/olivettifaces', graph = tf.get_default_graph())
+            if tf.__version__ < '1':
+                summary_writer = tf.train.SummaryWriter(self._graph_dir, sess.graph)
+            else:
+                tf.summary.FileWriter('my_graph/olivettifaces', graph = tf.get_default_graph())
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners( sess = sess, coord = coord )
@@ -258,7 +271,7 @@ class DL_CNN:
             DL_CNN._linear_layer(
                 linear_index = 1,
                 data = layer2_output_flatten,
-                weights_size = [15 * 12 * 64, 1024],
+                weights_size = [layer2_output.shape[1] * layer2_output.shape[2] * layer2_output.shape[3], 1024],    # weights_size = [15 * 12 * 64, 1024]
                 biases_size = [1024]
             )
         )
