@@ -59,7 +59,7 @@
 import glob, os
 import datetime
 import tensorflow as tf
-from PIL import Image
+from PIL import Image       # sudo pip3 install pillow -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 # because my tensorflow is CPU version, it running will report 'warning', write below line for disable this 'warning'.

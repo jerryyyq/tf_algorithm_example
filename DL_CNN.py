@@ -290,7 +290,11 @@ class DL_CNN:
 
     @staticmethod
     def _loss(feature, label):
-        softmax_out = tf.nn.softmax_cross_entropy_with_logits(logits = feature, labels = label)
+        if tf.__version__ < '1':
+            softmax_out = tf.nn.softmax_cross_entropy_with_logits(logits = feature, labels = label)
+        else:
+            softmax_out = tf.nn.softmax_cross_entropy_with_logits_v2(logits = feature, labels = label)
+
         return tf.reduce_mean(softmax_out)
 
     # 返回计算出的 class(非 one hot 格式)
