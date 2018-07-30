@@ -83,7 +83,7 @@ class DL_CNN:
         if tf.__version__ < '1':
             merged_summary_op = tf.merge_all_summaries()
         else:
-            tf.summary.merge_all()
+            merged_summary_op = tf.summary.merge_all()
 
         # 用于保存训练结果的对象
         saver = tf.train.Saver()
@@ -98,7 +98,7 @@ class DL_CNN:
             if tf.__version__ < '1':
                 summary_writer = tf.train.SummaryWriter(self._graph_dir, sess.graph)
             else:
-                tf.summary.FileWriter('my_graph/olivettifaces', graph = tf.get_default_graph())
+                summary_writer = tf.summary.FileWriter(self._graph_dir, graph = tf.get_default_graph())
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners( sess = sess, coord = coord )
