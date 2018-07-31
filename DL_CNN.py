@@ -151,7 +151,7 @@ class DL_CNN:
 
 
     ''''' 
-    校验 
+    校验。打印值：1 为准确，0 为失败
     @:param test_sample_number     用于验证的样本的总数 
     @:param batch_size             每一次取多少个样本进行校验 
     @:return none
