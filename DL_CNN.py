@@ -277,13 +277,22 @@ class DL_CNN:
             pooling_size = [1, 2, 2, 1]
         )
 
+        # 再加一层试试，得到的张量shape为：[batch_size, , , 128]
+        layer_last_output = DL_CNN._convolutional_layer(
+            layer_index = 3,
+            data = layer2_output,
+            kernel_size = [5, 5, 64, 128],
+            bias_size = [128],
+            pooling_size = [1, 2, 2, 1]
+        )
+
         # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量
-        layer2_output_flatten = tf.contrib.layers.flatten(layer2_output)
-        layer3_output = tf.nn.relu(
+        layer_last_output_flatten = tf.contrib.layers.flatten(layer_last_output)
+        layer_all_link = tf.nn.relu(
             DL_CNN._linear_layer(
                 linear_index = 1,
-                data = layer2_output_flatten,
-                weights_size = [layer2_output.shape[1] * layer2_output.shape[2] * layer2_output.shape[3], 1024],    # weights_size = [15 * 12 * 64, 1024]
+                data = layer_last_output_flatten,
+                weights_size = [layer_last_output.shape[1] * layer_last_output.shape[2] * layer_last_output.shape[3], 1024],    # layer2_output, weights_size = [15 * 12 * 64, 1024]
                 biases_size = [1024]
             )
         )
@@ -293,7 +302,7 @@ class DL_CNN:
         # 输出层
         output = DL_CNN._linear_layer(
             linear_index = 2,
-            data = layer3_output,
+            data = layer_all_link,
             weights_size = [1024, class_size],      # 根据类别个数定义最后输出层的神经元
             biases_size = [class_size]
         )
@@ -325,17 +334,17 @@ if __name__ == '__main__':
 
     # 下面这三个场景不能同时运行，每次只能运行一个场景
     # 场景一：使用训练数据进行模型训练
-    one_cnn.train(500, 320)
+    # one_cnn.train(500, 320)
 
     # 场景二：使用验证数据来校验训练好的模型的准确率
     # one_cnn.verify(80, 10)
 
     # 场景三：使用训练好的模型来识别一个图片的类型
-    '''
+    
     import numpy as np
     from PIL import Image
 
-    img = Image.open('data_source/olivettifaces/03/2.gif')
+    img = Image.open('data_source/olivettifaces/00/2.gif')
     img_ndarray = np.asarray(img, dtype='float32') / 255
 
     batch_one_image = np.empty((1, image_height, image_width, image_channel))
@@ -344,5 +353,5 @@ if __name__ == '__main__':
     tensor_one_image = tf.convert_to_tensor(batch_one_image)
     tensor_one_image = tf.cast(tensor_one_image, tf.float32)
 
-    one_cnn.recognition(tensor_one_image, False)
-    '''
+    one_cnn.recognition(tensor_one_image)
+    
