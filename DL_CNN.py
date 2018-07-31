@@ -157,27 +157,37 @@ class DL_CNN:
     @:return none
     ''' 
     def verify(self, test_sample_number, batch_size = 5):
+        print('_tf_record_dir = ', self._tf_record_dir)
         one_set = Img2TFRecord('', self._tf_record_dir)
 
         reshape = [self._image_height, self._image_width, self._image_channel]
         verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
+        # verify_label_set = tf.Print(verify_label_set, [verify_label_set], 'verify_label_set = ', summarize=100)
 
         calculate_label = self._recognition(verify_image_set, self._class_size, self._image_channel)
+        # calculate_label = tf.Print(calculate_label, [calculate_label], 'calculate_label = ', summarize=100)
+
         correct = tf.equal( calculate_label, tf.argmax(verify_label_set, 1) )
         accuracy = tf.reduce_mean( tf.cast(correct, 'float') )
 
         # 用于保存训练结果的对象
         saver = tf.train.Saver()
 
+        if tf.__version__ < '1':
+            init = tf.initialize_all_variables()
+        else:
+            init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+
         with tf.Session() as sess:
+            sess.run(init)              # 不加这行会导致 OutOfRangeError (see above for traceback): RandomShuffleQueue 的错误发生
             # 恢复数据并校验和测试
             saver.restore(sess, self._model_file)
 
             coord = tf.train.Coordinator() 
             threads = tf.train.start_queue_runners( sess = sess, coord = coord )
 
-            for i in range(int(test_sample_number/batch_size)):
-                print('valid set accuracy: ', accuracy.eval())
+            for i in range( int(test_sample_number/batch_size) ):
+                print( 'verify i = {}, valid set accuracy = {}'.format(i, accuracy.eval()) )
 
 
 
@@ -195,6 +205,7 @@ class DL_CNN:
     ''' 
     def recognition(self, image_set, out_probability = True):
         neural_out = self._convolutional_neural_network(image_set, self._class_size, self._image_channel)
+        neural_out = tf.Print(neural_out, [neural_out], 'neural_out = ', summarize=100)        
         # 计算各个类别的概率
         probability = tf.nn.softmax(neural_out)
 
@@ -202,6 +213,7 @@ class DL_CNN:
         class_index = tf.argmax(neural_out, 1)
 
         saver = tf.train.Saver()
+
         with tf.Session() as sess:
             # 恢复数据并校验和测试
             saver.restore(sess, self._model_file)
@@ -309,7 +321,7 @@ if __name__ == '__main__':
     image_height = 57
     image_width = 47
     image_channel = 1
-    one_cnn = DL_CNN('tf_record/olivettifaces', image_height, image_width, image_channel, 40)
+    one_cnn = DL_CNN('tf_record/olivettifaces', image_height, image_width, image_channel, 40, 'model/olive/olive_best.ckpt')
 
     # 下面这三个场景不能同时运行，每次只能运行一个场景
     # 场景一：使用训练数据进行模型训练
@@ -324,7 +336,7 @@ if __name__ == '__main__':
     from PIL import Image
 
     img = Image.open('data_source/olivettifaces/03/2.gif')
-    img_ndarray = np.asarray(img, dtype='float32') / 256
+    img_ndarray = np.asarray(img, dtype='float32') / 255
 
     batch_one_image = np.empty((1, image_height, image_width, image_channel))
     batch_one_image[0] = img_ndarray.reshape(image_height, image_width, image_channel)
@@ -332,5 +344,5 @@ if __name__ == '__main__':
     tensor_one_image = tf.convert_to_tensor(batch_one_image)
     tensor_one_image = tf.cast(tensor_one_image, tf.float32)
 
-    one_cnn.recognition(tensor_one_image)
+    one_cnn.recognition(tensor_one_image, False)
     '''
