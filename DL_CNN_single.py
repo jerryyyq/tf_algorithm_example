@@ -7,6 +7,8 @@
 # date: 2018-03-28
 ###################################################################
 
+# 一个 C++ 实现的神经网络参考代码：https://blog.csdn.net/xingchenbingbuyu/article/details/53736154
+
 import os
 import tensorflow as tf
 
