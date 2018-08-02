@@ -197,11 +197,11 @@ class DL_CNN:
 
 
     ''''' 
-    识别，计算属于各个类别的概率 
-    @:param image_set          tensor 对象，待识别图像集合，图像 shape 需要与训练时的相同
-    @:param out_probability    tensor 对象，待识别图像集合，图像 shape 需要与训练时的相同
-    @:return                   tensor 对象，如果 out_probability 为 True, 那么返回计算出的各类别的概率值( one hot 格式)
-                                           如果 out_probability 为 False，那么返回识别出的类别（非 one hot 格式）
+    识别一批图像数据，计算属于各个类别的概率 
+    @:param image_set           tensor 对象，待识别图像集合，图像 shape 需要与训练时的相同
+    @:param out_probability     返回的是各类的概率值还是直接返回类别，默认返回的是各类的概率值
+    @:return                    如果 out_probability 为 True, 那么返回计算出的各类别的概率值( one hot 格式)
+                                如果 out_probability 为 False，那么返回识别出的类别（非 one hot 格式）
     ''' 
     def recognition(self, image_set, out_probability = True):
         neural_out = self._convolutional_neural_network(image_set, self._class_size, self._image_channel)
@@ -226,6 +226,25 @@ class DL_CNN:
             print( ret )
             return ret
 
+    ''''' 
+    识别一个图像文件，计算属于各个类别的概率 
+    @:param image_file_path     待识别图像文件
+    @:param out_probability     返回的是各类的概率值还是直接返回类别，默认返回的是各类的概率值
+    @:return                    如果 out_probability 为 True, 那么返回计算出的各类别的概率值( one hot 格式)
+                                如果 out_probability 为 False，那么返回识别出的类别（非 one hot 格式）
+    ''' 
+    def recognition_one_image(self, image_file_path, out_probability = True):
+        import numpy as np
+        from PIL import Image
+        img = Image.open(image_file_path)
+        img = img.convert('L')
+
+        batch_one_image = np.empty((1, self._image_height, self._image_width))
+        batch_one_image[0] = np.asarray(img)
+
+        tensor_one_image = tf.reshape( batch_one_image, (1, self._image_height, self._image_width, self._image_channel) )
+        tensor_one_image = tf.cast(tensor_one_image, tf.float32) * (1./255)
+        return self.recognition(tensor_one_image)
 
 
     @staticmethod
@@ -344,7 +363,8 @@ if __name__ == '__main__':
     import numpy as np
     from PIL import Image
 
-    img = Image.open('data_source/olivettifaces/00/2.gif')
+    img = Image.open('data_source/olivettifaces/20/2.gif')
+    img = img.convert('L')
     img_ndarray = np.asarray(img, dtype='float32') / 255
 
     batch_one_image = np.empty((1, image_height, image_width, image_channel))
@@ -353,5 +373,5 @@ if __name__ == '__main__':
     tensor_one_image = tf.convert_to_tensor(batch_one_image)
     tensor_one_image = tf.cast(tensor_one_image, tf.float32)
 
-    one_cnn.recognition(tensor_one_image)
+    one_cnn.recognition(tensor_one_image, False)
     
