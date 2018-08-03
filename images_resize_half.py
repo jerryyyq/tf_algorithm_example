@@ -8,8 +8,11 @@ one_Set.generate_tf_record_files( (215, 175) )
 '''
 
 
-INPUT_DIR   =  '/home/yangyuqi/work/crack_sample'
-OUTPUT_DIR  =  '/home/yangyuqi/work/crack_sample_small'
+# INPUT_DIR   =  '/home/yangyuqi/work/crack_sample'
+# OUTPUT_DIR  =  '/home/yangyuqi/work/crack_sample_small'
+INPUT_DIR   =  '/home/yangyuqi/work/crack_sample_small/class_two'
+OUTPUT_DIR  =  '/home/yangyuqi/work/crack_sample_mini/class_two'
+
 
 
 for dir_name, dirs, files in os.walk( INPUT_DIR ):

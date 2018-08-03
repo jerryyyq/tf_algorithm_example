@@ -52,7 +52,7 @@ class DL_CNN:
     @:param batch_size             每一次取多少个样本进行训练 
     @:return none
     ''' 
-    def train(self, train_wheels, train_sample_number, batch_size = 5):
+    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False):
         print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}' . format(train_wheels, train_sample_number, batch_size) )
         one_set = Img2TFRecord('', self._tf_record_dir)
 
@@ -61,7 +61,11 @@ class DL_CNN:
 
         neural_out = self._convolutional_neural_network(image_set, self._class_size, self._image_channel)
         loss_out = self._loss(neural_out, label_set)
-        optimizer = tf.train.AdamOptimizer(1e-2).minimize(loss_out)     #tf.train.GradientDescentOptimizer(0.01).minimize(loss_out)
+
+        # tf.train.GradientDescentOptimizer(0.01).minimize(loss_out)    # 梯度下降算法不需要下面的 with
+        with tf.variable_scope(name_or_scope = '', reuse = tf.AUTO_REUSE):
+            optimizer = tf.train.AdamOptimizer(1e-3).minimize(loss_out)     
+
         # 将 loss 与 optimizer 保存以供 tensorboard 使用
         if tf.__version__ < '1':
             tf.scalar_summary('loss', loss_out)
@@ -95,6 +99,9 @@ class DL_CNN:
 
         with tf.Session() as sess:
             sess.run(init)
+            if continue_train:
+                saver.restore(sess, self._model_file)
+
             if tf.__version__ < '1':
                 summary_writer = tf.train.SummaryWriter(self._graph_dir, sess.graph)
             else:
@@ -188,8 +195,6 @@ class DL_CNN:
 
             for i in range( int(test_sample_number/batch_size) ):
                 print( 'verify i = {}, valid set accuracy = {}'.format(i, accuracy.eval()) )
-
-
 
             #关闭线程  
             coord.request_stop()  
@@ -290,7 +295,7 @@ class DL_CNN:
         )
 
         # 经过第二层卷积神经网络后，得到的张量shape为：[batch_size, 15, 12, 64]
-        layer2_output = DL_CNN._convolutional_layer(
+        layer_last_output = DL_CNN._convolutional_layer(    # layer2_output = 
             layer_index = 2,
             data = layer1_output,
             kernel_size = [5, 5, 32, 64],
@@ -298,6 +303,7 @@ class DL_CNN:
             pooling_size = [1, 2, 2, 1]
         )
 
+        '''
         # 再加一层试试，得到的张量shape为：[batch_size, , , 128]
         layer_last_output = DL_CNN._convolutional_layer(
             layer_index = 3,
@@ -306,6 +312,7 @@ class DL_CNN:
             bias_size = [128],
             pooling_size = [1, 2, 2, 1]
         )
+        '''
 
         # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量
         layer_last_output_flatten = tf.contrib.layers.flatten(layer_last_output)
@@ -318,7 +325,7 @@ class DL_CNN:
             )
         )
         # 减少过拟合，随机让某些权重不更新
-        # layer3_output = tf.nn.dropout(layer3_output, 0.8)
+        # layer_all_link = tf.nn.dropout(layer_all_link, 0.8)
         
         # 输出层
         output = DL_CNN._linear_layer(
