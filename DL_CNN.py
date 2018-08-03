@@ -53,7 +53,7 @@ class DL_CNN:
     @:return none
     ''' 
     def train(self, train_wheels, train_sample_number, batch_size = 5):
-        print(train_wheels, train_sample_number, batch_size)
+        print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}' . format(train_wheels, train_sample_number, batch_size) )
         one_set = Img2TFRecord('', self._tf_record_dir)
 
         reshape = [self._image_height, self._image_width, self._image_channel]
@@ -244,29 +244,31 @@ class DL_CNN:
 
         tensor_one_image = tf.reshape( batch_one_image, (1, self._image_height, self._image_width, self._image_channel) )
         tensor_one_image = tf.cast(tensor_one_image, tf.float32) * (1./255)
-        return self.recognition(tensor_one_image)
+        return self.recognition(tensor_one_image, out_probability)
 
 
     @staticmethod
     def _convolutional_layer(layer_index, data, kernel_size, bias_size, pooling_size):
-        kernel = tf.get_variable("conv_{}".format(layer_index), kernel_size, initializer=tf.random_normal_initializer())
-        bias = tf.get_variable("bias_{}".format(layer_index), bias_size, initializer=tf.random_normal_initializer())
+        with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE):
+            kernel = tf.get_variable("conv_{}".format(layer_index), kernel_size, initializer=tf.random_normal_initializer())
+            bias = tf.get_variable("bias_{}".format(layer_index), bias_size, initializer=tf.random_normal_initializer())
 
-        # 卷积
-        conv = tf.nn.conv2d(data, kernel, strides=[1, 1, 1, 1], padding='SAME')
+            # 卷积
+            conv = tf.nn.conv2d(data, kernel, strides=[1, 1, 1, 1], padding='SAME')
 
-        # 线性修正，将所有的元素中的负数置为零
-        linear_output = tf.nn.relu(tf.add(conv, bias))
+            # 线性修正，将所有的元素中的负数置为零
+            linear_output = tf.nn.relu(tf.add(conv, bias))
 
-        # 池化
-        pooling = tf.nn.max_pool(linear_output, ksize=pooling_size, strides=pooling_size, padding="SAME")
-        return pooling
+            # 池化
+            pooling = tf.nn.max_pool(linear_output, ksize=pooling_size, strides=pooling_size, padding="SAME")
+            return pooling
 
     @staticmethod
     def _linear_layer(linear_index, data, weights_size, biases_size):
-        weights = tf.get_variable("weigths_{}".format(linear_index), weights_size, initializer=tf.random_normal_initializer())
-        biases = tf.get_variable("biases_{}".format(linear_index), biases_size, initializer=tf.random_normal_initializer())
-        return tf.add(tf.matmul(data, weights), biases)
+        with tf.variable_scope(name_or_scope = 'linear_layer' + str(linear_index), reuse = tf.AUTO_REUSE):
+            weights = tf.get_variable("weigths_{}".format(linear_index), weights_size, initializer=tf.random_normal_initializer())
+            biases = tf.get_variable("biases_{}".format(linear_index), biases_size, initializer=tf.random_normal_initializer())
+            return tf.add(tf.matmul(data, weights), biases)
 
 
     ''''' 
