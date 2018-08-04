@@ -52,38 +52,46 @@ class DL_CNN:
     @:param batch_size             每一次取多少个样本进行训练 
     @:return none
     ''' 
-    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False):
+    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False, learning_rate = 0.01):
         print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}' . format(train_wheels, train_sample_number, batch_size) )
         one_set = Img2TFRecord('', self._tf_record_dir)
 
         reshape = [self._image_height, self._image_width, self._image_channel]
+        # 获取训练集数据
         image_set, label_set = one_set.read_train_images_from_tf_records(batch_size, reshape, self._class_size)  # height, width, channel
-
+        # 调用模型
         neural_out = self._convolutional_neural_network(image_set, self._class_size, self._image_channel)
         loss_out = self._loss(neural_out, label_set)
+        train_accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(neural_out, 1), tf.argmax(label_set, 1)), tf.float32))
 
         # tf.train.GradientDescentOptimizer(0.01).minimize(loss_out)    # 梯度下降算法不需要下面的 with
         with tf.variable_scope(name_or_scope = '', reuse = tf.AUTO_REUSE):
-            optimizer = tf.train.AdamOptimizer(1e-3).minimize(loss_out)     
+            optimizer = tf.train.AdamOptimizer( learning_rate ).minimize(loss_out)
 
         # 将 loss 与 optimizer 保存以供 tensorboard 使用
         if tf.__version__ < '1':
             tf.scalar_summary('loss', loss_out)
+            tf.scalar_summary('train_accuracy', train_accuracy)
             # tf.scalar_summary('optimizer', optimizer)
         else:
             tf.summary.scalar('loss', loss_out)
+            tf.summary.scalar('train_accuracy', train_accuracy)
             # tf.summary.scalar('optimizer', optimizer)
 
-        ''' 方法二
+        # 方法二：按准确率来比较。注意：计算准确率时使用的是：测试集！测试集！测试集！
         verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
 
         # 比较标签是否相等，再求的所有数的平均值，tf.cast(强制转换类型)
-        tf.get_variable_scope().reuse_variables()  # 为了方法二对准确率进行计算，复用当前变量
-        calculate_label = self._recognition(verify_image_set, self._class_size, self._image_channel)
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(calculate_label, tf.argmax(verify_label_set, 1)), tf.float32))
+        # tf.get_variable_scope().reuse_variables()  # 为了方法二对准确率进行计算，复用当前变量
+        predict_labell = self._recognition(verify_image_set, self._class_size, self._image_channel)
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(predict_labell, tf.argmax(verify_label_set, 1)), tf.float32))
         # 将 accuracy 保存以供 tensorboard 使用
-        tf.scalar_summary('accuracy', accuracy)        # 高版本 -> tf.summary.scalar('accuracy', accuracy)
-        '''
+        if tf.__version__ < '1':
+            tf.scalar_summary('accuracy', accuracy)
+        else: 
+            tf.summary.scalar('accuracy', accuracy)
+        
+        # -------------------------------------------------------------------------
         if tf.__version__ < '1':
             merged_summary_op = tf.merge_all_summaries()
         else:
@@ -111,46 +119,46 @@ class DL_CNN:
             threads = tf.train.start_queue_runners( sess = sess, coord = coord )
 
             best_loss = float('Inf')
-            epoch_loss = 0
+            for i in range(train_wheels):
+                epoch_loss = 0.
+                total_accuracy = 0.
+                for j in range( train_sample_number // batch_size ):
+                    _, cost, taccuracy, summary = sess.run([optimizer, loss_out, train_accuracy, merged_summary_op])
+                    summary_writer.add_summary(summary, i * j)
 
-            for i in range(int(train_sample_number/batch_size) * train_wheels):
-                _, cost, summary = sess.run([optimizer, loss_out, merged_summary_op])
-                summary_writer.add_summary(summary, i)
-                epoch_loss += cost
+                    # print('j = {}, cost = {}, train_accuracy = {}' . format(j, cost, taccuracy))
+                    epoch_loss += cost
+                    total_accuracy = total_accuracy + taccuracy
 
-                #'''
+                '''
                 # 方法一，每一轮比较一次
                 # 共有学习样本 320 个，所以每一轮应该是 320 / batch_size 次
-                if i % (train_sample_number/batch_size) == 0:
-                    print(i, ' : ', epoch_loss)
-                    if best_loss > epoch_loss:
-                        best_loss = epoch_loss
+                print(i, ', epoch_loss is : ', epoch_loss, ', train_accuracy is : ', total_accuracy / j)
+                if best_loss > epoch_loss:
+                    best_loss = epoch_loss
 
-                        save_path = saver.save( sess, self._model_file )
-                        print( "Model saved in file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )
-                        if 0.0 == epoch_loss:
-                            print('epoch_loss == 0.0, exited!')
-                            break
+                    save_path = saver.save( sess, self._model_file )
+                    print( "Model saved in file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )
+                    if 0.0 == epoch_loss:
+                        print('epoch_loss == 0.0, exited!')
+                        break
+                '''
 
-                    epoch_loss = 0
-                #'''
-
-                '''                
+                #'''                
                 # 方法二，按准确率结束学习
                 # 获取测试数据的准确率
-                # 每一轮测试一下
-                if i % int(train_sample_number/batch_size) != 0:
-                    continue
-
                 acc = accuracy.eval()
-                print(i, "acc:", acc, "  loss:", epoch_loss)
-                epoch_loss = 0
+                print(i, ', epoch_loss is : ', epoch_loss, ', train_accuracy is : ', total_accuracy / j, ', verify accuracy is : ', acc)
                 # 准确率大于0.98时保存并退出
-                if acc > 0.98 and i > 2:
-                    saver.save(sess, self._model_file, global_step = i)
-                    print('accuracy less 0.98, exited!')
-                    break  # sys.exit(0)
-                '''
+                if i > 2 and total_accuracy / j > 0.98:
+                    save_path = saver.save( sess, self._model_file, global_step = i )
+                    print( "Model saved in file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )                    
+                    
+                    if acc > 0.98:
+                        saver.save(sess, self._model_file)
+                        print('verify accuracy > 0.98, finish!')
+                        break  # sys.exit(0)
+                #'''
 
             #关闭线程  
             coord.request_stop()
@@ -171,10 +179,10 @@ class DL_CNN:
         verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
         # verify_label_set = tf.Print(verify_label_set, [verify_label_set], 'verify_label_set = ', summarize=100)
 
-        calculate_label = self._recognition(verify_image_set, self._class_size, self._image_channel)
-        # calculate_label = tf.Print(calculate_label, [calculate_label], 'calculate_label = ', summarize=100)
+        predict_labell = self._recognition(verify_image_set, self._class_size, self._image_channel)
+        # predict_labell = tf.Print(predict_labell, [predict_labell], 'predict_labell = ', summarize=100)
 
-        correct = tf.equal( calculate_label, tf.argmax(verify_label_set, 1) )
+        correct = tf.equal( predict_labell, tf.argmax(verify_label_set, 1) )
         accuracy = tf.reduce_mean( tf.cast(correct, 'float') )
 
         # 用于保存训练结果的对象
@@ -254,7 +262,8 @@ class DL_CNN:
 
     @staticmethod
     def _convolutional_layer(layer_index, data, kernel_size, bias_size, pooling_size):
-        with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE):
+        regularizer = tf.contrib.layers.l1_regularizer(0.1)
+        with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE, regularizer = regularizer):
             kernel = tf.get_variable("conv_{}".format(layer_index), kernel_size, initializer=tf.random_normal_initializer())
             bias = tf.get_variable("bias_{}".format(layer_index), bias_size, initializer=tf.random_normal_initializer())
 
@@ -324,6 +333,7 @@ class DL_CNN:
                 biases_size = [1024]
             )
         )
+        
         # 减少过拟合，随机让某些权重不更新
         # layer_all_link = tf.nn.dropout(layer_all_link, 0.8)
         
@@ -344,7 +354,8 @@ class DL_CNN:
         else:
             softmax_out = tf.nn.softmax_cross_entropy_with_logits_v2(logits = feature, labels = label)
 
-        return tf.reduce_mean(softmax_out)
+        # return tf.reduce_mean(softmax_out)
+        return tf.reduce_mean(softmax_out) + 0.01 * sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
     # 返回计算出的 class(非 one hot 格式)
     @staticmethod

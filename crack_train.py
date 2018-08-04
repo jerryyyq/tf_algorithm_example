@@ -14,22 +14,24 @@ WIDTH = 107
 HEIGHT = 25
 
 one_cnn = DL_CNN('/home/yangyuqi/work/crack_sample_mini/tf_record_two', 25, 107, 1, 2, 'model/crack_mini/crack_best.ckpt')
-# one_cnn.train(500, 96, 4)
-
+# one_cnn.train(500, 96, 4, True, 0.0001)
+one_cnn.train(500, 96, 4)
 
 one_cnn.verify(24, 4)
 
 # is
+print('---------------- is ----------------')
 one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/6-crack/24-2-9-2.bmp') 
 one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/6-crack/29-2-9-2.bmp')
 
 # not
+print('---------------- not ----------------')
 one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/29-2-14-2.bmp')
 one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/2-2-13-2.bmp')
 one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/24-2-12-2.bmp')
 
 # ----------------------------------------------------------------------------------------
-
+"""
 from PIL import Image, ImageDraw
 import numpy as np
 import tensorflow as tf
@@ -82,3 +84,4 @@ for row in range( 7, resize_img.height // HEIGHT ):
         cropImg = cropImg.convert('L')
         ret = detect_one_region(cropImg)
         '''
+"""
