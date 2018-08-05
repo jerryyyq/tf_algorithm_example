@@ -285,8 +285,45 @@ def read_images_from_tfrecords(records_path, image_shape, batch_size):
     return image_batch, label_batch
     
 
+# image_size_to_helf('/home/yangyuqi/work/crack_sample_small/is', '/home/yangyuqi/work/crack_sample_mini/')
+# from img_to_tf_record import Img2TFRecord
+# one_Set = Img2TFRecord('/home/yangyuqi/work/crack_sample_mini/class_two', '/home/yangyuqi/work/crack_sample_mini/tf_record_two', 'bmp')
+# one_Set.generate_tf_record_files( (107, 25) )
 
+def image_size_to_helf(input_dir, output_dir):
+    from PIL import Image     # pip install Augmentor -i https://pypi.tuna.tsinghua.edu.cn/simple
 
+    for dir_name, dirs, files in os.walk( input_dir ):
+        for file_name in files:
+            dir_fields = os.path.split( dir_name )
+            out_dir = os.path.join( output_dir, dir_fields[-1] )
+            if not os.path.exists( out_dir ):
+                os.makedirs( out_dir )
 
+            old_file_path = os.path.join(dir_name, file_name)
+            new_file_path = os.path.join(out_dir, file_name)
+
+            img = Image.open( old_file_path )
+            resize_img = img.resize((int(img.width/2), int(img.height/2)), Image.ANTIALIAS)
+            resize_img.save(new_file_path)
+
+# augmentation_new_image('/home/yangyuqi/work/crack_sample_mini/class_two/6-crack', '/home/yangyuqi/work/crack_sample_mini/crack-augmentor', 1000)
+def augmentation_new_image(input_dir, output_dir, output_number):
+    import Augmentor        # pip install Augmentor -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+    p = Augmentor.Pipeline(input_dir, output_directory = output_dir)
+
+    p.zoom(probability=0.1, min_factor=1.1, max_factor=1.3)
+    p.flip_left_right(probability=0.1)
+    p.rotate(probability=0.2, max_left_rotation=15, max_right_rotation=16)
+    p.shear(probability=0.2, max_shear_left=10, max_shear_right=10)
+    p.skew(probability=0.1, magnitude=0.6)
+    p.skew_tilt(probability=0.2, magnitude=0.6)
+    p.random_distortion(probability=0.3, grid_height=4, grid_width=4, magnitude=4)
+
+    # p.random_distortion(probability=0.2, grid_height=4, grid_width=4, magnitude=4)
+    # p.rotate90(probability=1)
+
+    p.sample(output_number)
 
 

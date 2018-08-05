@@ -12,7 +12,7 @@ import random
 import os
 from multiprocessing import Pool as ProcessPool
 from multiprocessing.dummy import Pool as ThreadPool
-import Augmentor        # pip install Augmentor
+import Augmentor        # pip install Augmentor -i https://pypi.tuna.tsinghua.edu.cn/simple
 import path_var
 
 

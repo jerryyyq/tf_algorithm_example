@@ -13,6 +13,7 @@ import tensorflow as tf
 from img_to_tf_record import Img2TFRecord
 
 # CNN 图像识别基类，派生类可以通过重写 _convolutional_neural_network 函数来构建自己的 CNN 模型
+# tensorboard --logdir=graph_dir，如果没有设置，本类的默认为：'graph/DL_CNN'
 class DL_CNN:
     ####################### 构造与析构函数 #######################
     def __init__(self, tf_record_dir, image_height, image_width, image_channel, class_size, model_file = '', graph_dir = '' ):
@@ -50,9 +51,13 @@ class DL_CNN:
     @:param train_wheels           计划对样本训练多少轮 
     @:param train_sample_number    用于训练的样本的总数 
     @:param batch_size             每一次取多少个样本进行训练 
+    @:param continue_train         是否继续上一次训练。如果是，会进行 saver.restore
+    @:param learning_rate          学习率
+    @:param test_sample_number     用于验证的样本的总数。应用于使用测试准确率判断是否训练完成的情况
+
     @:return none
     ''' 
-    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False, learning_rate = 0.01):
+    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False, learning_rate = 0.01, test_sample_number = -1):
         print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}' . format(train_wheels, train_sample_number, batch_size) )
         one_set = Img2TFRecord('', self._tf_record_dir)
 
@@ -147,17 +152,31 @@ class DL_CNN:
                 #'''                
                 # 方法二，按准确率结束学习
                 # 获取测试数据的准确率
-                acc = accuracy.eval()
+                if 0 > test_sample_number:
+                    acc = accuracy.eval()
+                else:
+                    acc = 0
+                    for k in range(test_sample_number // batch_size):
+                        acc = acc + accuracy.eval()
+
+                    acc = acc / k
+                
                 print(i, ', epoch_loss is : ', epoch_loss, ', train_accuracy is : ', total_accuracy / j, ', verify accuracy is : ', acc)
                 # 准确率大于0.98时保存并退出
-                if i > 2 and total_accuracy / j > 0.98:
-                    save_path = saver.save( sess, self._model_file, global_step = i )
-                    print( "Model saved in file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )                    
+                if i > 2:
+                    if best_loss > epoch_loss:
+                        best_loss = epoch_loss
+                        save_path = saver.save( sess, self._model_file, global_step = 0 )
+                        print( "Model saved in file: {}, epoch_loss = {}, global_step = 0" . format(save_path, epoch_loss) )           
+                
+                    if total_accuracy / j > 0.97:
+                        save_path = saver.save( sess, self._model_file, global_step = i )
+                        print( "train_accuracy > 0.97, Model saved in file: {}, epoch_loss = {}, global_step = {}" . format(save_path, epoch_loss, i) )                    
                     
-                    if acc > 0.98:
-                        saver.save(sess, self._model_file)
-                        print('verify accuracy > 0.98, finish!')
-                        break  # sys.exit(0)
+                        if acc > 0.98:
+                            saver.save(sess, self._model_file)
+                            print('verify accuracy > 0.98, finish!')
+                            break  # sys.exit(0)
                 #'''
 
             #关闭线程  
@@ -262,8 +281,9 @@ class DL_CNN:
 
     @staticmethod
     def _convolutional_layer(layer_index, data, kernel_size, bias_size, pooling_size):
-        regularizer = tf.contrib.layers.l1_regularizer(0.1)
-        with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE, regularizer = regularizer):
+        # regularizer = tf.contrib.layers.l1_regularizer(0.1)
+        # with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE, regularizer = regularizer):
+        with tf.variable_scope(name_or_scope = 'conv_layer' + str(layer_index), reuse = tf.AUTO_REUSE):
             kernel = tf.get_variable("conv_{}".format(layer_index), kernel_size, initializer=tf.random_normal_initializer())
             bias = tf.get_variable("bias_{}".format(layer_index), bias_size, initializer=tf.random_normal_initializer())
 
@@ -324,13 +344,14 @@ class DL_CNN:
         '''
 
         # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量
+        all_link_n_number = 256    # 1024
         layer_last_output_flatten = tf.contrib.layers.flatten(layer_last_output)
         layer_all_link = tf.nn.relu(
             DL_CNN._linear_layer(
                 linear_index = 1,
                 data = layer_last_output_flatten,
-                weights_size = [layer_last_output.shape[1] * layer_last_output.shape[2] * layer_last_output.shape[3], 1024],    # layer2_output, weights_size = [15 * 12 * 64, 1024]
-                biases_size = [1024]
+                weights_size = [layer_last_output.shape[1] * layer_last_output.shape[2] * layer_last_output.shape[3], all_link_n_number],    # layer2_output, weights_size = [15 * 12 * 64, 1024]
+                biases_size = [all_link_n_number]
             )
         )
         
@@ -341,7 +362,7 @@ class DL_CNN:
         output = DL_CNN._linear_layer(
             linear_index = 2,
             data = layer_all_link,
-            weights_size = [1024, class_size],      # 根据类别个数定义最后输出层的神经元
+            weights_size = [all_link_n_number, class_size],      # 根据类别个数定义最后输出层的神经元
             biases_size = [class_size]
         )
 
@@ -354,8 +375,8 @@ class DL_CNN:
         else:
             softmax_out = tf.nn.softmax_cross_entropy_with_logits_v2(logits = feature, labels = label)
 
-        # return tf.reduce_mean(softmax_out)
-        return tf.reduce_mean(softmax_out) + 0.01 * sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        return tf.reduce_mean(softmax_out)
+        # return tf.reduce_mean(softmax_out) + 0.01 * sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
     # 返回计算出的 class(非 one hot 格式)
     @staticmethod

@@ -14,10 +14,11 @@ WIDTH = 107
 HEIGHT = 25
 
 one_cnn = DL_CNN('/home/yangyuqi/work/crack_sample_mini/tf_record_two', 25, 107, 1, 2, 'model/crack_mini/crack_best.ckpt')
-# one_cnn.train(500, 96, 4, True, 0.0001)
-one_cnn.train(500, 96, 4)
+#  one_cnn.train(500, 96, 4, True, 0.0001)
+one_cnn.train(500, 224, 4, False, 0.01, 56)
 
-one_cnn.verify(24, 4)
+# one_cnn = DL_CNN('/home/yangyuqi/work/crack_sample_mini/tf_record_two', 25, 107, 1, 2, 'model/crack_mini/crack_best.ckpt-75')
+one_cnn.verify(56, 4)
 
 # is
 print('---------------- is ----------------')
