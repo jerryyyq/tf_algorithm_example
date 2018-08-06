@@ -37,7 +37,7 @@
     out_dir will save output tf_redores files, it will include 
     training files and test files and label file, 
     the test images accounts for 20% of the total accounts.
-    ????_record.inf include the image's amount of every record file.
+    ????_record.txt include the image's amount of every record file.
     The directory like below:
     --------------------------------------------------------
     out_dir/train_1.tfr 
@@ -51,8 +51,8 @@
     out_dir/test_n.tfr 
 
     out_dir/label.txt
-    out_dir/train_record.inf
-    out_dir/test_record.inf
+    out_dir/train_record.txt
+    out_dir/test_record.txt
     --------------------------------------------------------
 """
 
@@ -185,7 +185,7 @@ class Img2TFRecord(object):
 
     def __generate_tf_record_files(self, prefix, image_with_breed, resize, channel = 1, one_record_max_imgaes = 1024):
         # delete info file
-        info_file = os.path.join(self.__out_dir, prefix + '_record.inf')
+        info_file = os.path.join(self.__out_dir, prefix + '_record.txt')
         if os.path.exists(info_file):
             os.remove(info_file)
 
@@ -243,7 +243,7 @@ class Img2TFRecord(object):
 
 
     def __save_record_info_to_file(self, prefix, record_index, image_amount):
-        info_file = os.path.join(self.__out_dir, prefix + '_record.inf')
+        info_file = os.path.join(self.__out_dir, prefix + '_record.txt')
         with open(info_file, 'a') as f:
             nowTime = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
             f.write(nowTime + '\t' + prefix + '_' + str(record_index) + '.tfr\t' + str(image_amount) + '\n')

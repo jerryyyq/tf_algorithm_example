@@ -290,7 +290,8 @@ def read_images_from_tfrecords(records_path, image_shape, batch_size):
 # one_Set = Img2TFRecord('/home/yangyuqi/work/crack_sample_mini/class_two', '/home/yangyuqi/work/crack_sample_mini/tf_record_two', 'bmp')
 # one_Set.generate_tf_record_files( (107, 25) )
 
-def image_size_to_helf(input_dir, output_dir):
+# type: Image.NEAREST ：低质量; Image.BILINEAR：双线性; Image.BICUBIC ：三次样条插值; Image.ANTIALIAS：高质量
+def image_size_to_helf(input_dir, output_dir, type):
     from PIL import Image     # pip install Augmentor -i https://pypi.tuna.tsinghua.edu.cn/simple
 
     for dir_name, dirs, files in os.walk( input_dir ):
@@ -304,7 +305,7 @@ def image_size_to_helf(input_dir, output_dir):
             new_file_path = os.path.join(out_dir, file_name)
 
             img = Image.open( old_file_path )
-            resize_img = img.resize((int(img.width/2), int(img.height/2)), Image.ANTIALIAS)
+            resize_img = img.resize((int(img.width/2), int(img.height/2)), type)
             resize_img.save(new_file_path)
 
 # augmentation_new_image('/home/yangyuqi/work/crack_sample_mini/class_two/6-crack', '/home/yangyuqi/work/crack_sample_mini/crack-augmentor', 1000)

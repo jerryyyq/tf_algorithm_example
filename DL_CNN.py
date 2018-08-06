@@ -71,17 +71,23 @@ class DL_CNN:
 
         # tf.train.GradientDescentOptimizer(0.01).minimize(loss_out)    # 梯度下降算法不需要下面的 with
         with tf.variable_scope(name_or_scope = '', reuse = tf.AUTO_REUSE):
-            optimizer = tf.train.AdamOptimizer( learning_rate ).minimize(loss_out)
+            original_optimizer = tf.train.AdamOptimizer( learning_rate )
+            train_op = original_optimizer.minimize(loss_out)
 
-        # 将 loss 与 optimizer 保存以供 tensorboard 使用
+            '''  梯度裁剪   https://zhuanlan.zhihu.com/p/23060519
+            gradient_all = original_optimizer.compute_gradients(cost)
+            capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradient_all]
+            train_op = original_optimizer.apply_gradients(capped_gvs)
+            '''
+
+
+        # 将 loss 保存以供 tensorboard 使用
         if tf.__version__ < '1':
             tf.scalar_summary('loss', loss_out)
             tf.scalar_summary('train_accuracy', train_accuracy)
-            # tf.scalar_summary('optimizer', optimizer)
         else:
             tf.summary.scalar('loss', loss_out)
             tf.summary.scalar('train_accuracy', train_accuracy)
-            # tf.summary.scalar('optimizer', optimizer)
 
         # 方法二：按准确率来比较。注意：计算准确率时使用的是：测试集！测试集！测试集！
         verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
@@ -128,7 +134,7 @@ class DL_CNN:
                 epoch_loss = 0.
                 total_accuracy = 0.
                 for j in range( train_sample_number // batch_size ):
-                    _, cost, taccuracy, summary = sess.run([optimizer, loss_out, train_accuracy, merged_summary_op])
+                    _, cost, taccuracy, summary = sess.run([train_op, loss_out, train_accuracy, merged_summary_op])
                     summary_writer.add_summary(summary, i * j)
 
                     # print('j = {}, cost = {}, train_accuracy = {}' . format(j, cost, taccuracy))
@@ -167,15 +173,15 @@ class DL_CNN:
                     if best_loss > epoch_loss:
                         best_loss = epoch_loss
                         save_path = saver.save( sess, self._model_file, global_step = 0 )
-                        print( "Model saved in file: {}, epoch_loss = {}, global_step = 0" . format(save_path, epoch_loss) )           
+                        print( "Model saved in ========> file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )           
                 
-                    if total_accuracy / j > 0.97:
+                    if total_accuracy / j > 0.97 and acc > 0.90:
                         save_path = saver.save( sess, self._model_file, global_step = i )
-                        print( "train_accuracy > 0.97, Model saved in file: {}, epoch_loss = {}, global_step = {}" . format(save_path, epoch_loss, i) )                    
+                        print( "train_accuracy > 0.97, Model saved in ========> file: {}, epoch_loss = {}, global_step = {}" . format(save_path, epoch_loss, i) )                    
                     
-                        if acc > 0.98:
+                        if acc > 0.97:
                             saver.save(sess, self._model_file)
-                            print('verify accuracy > 0.98, finish!')
+                            print('verify accuracy > 0.97, finish!')
                             break  # sys.exit(0)
                 #'''
 
@@ -314,6 +320,7 @@ class DL_CNN:
     ''' 
     @staticmethod
     def _convolutional_neural_network(data, class_size, image_channel):
+        #data = tf.Print(data, [data.shape], 'input data shape = ', summarize=100)
         # 经过第一层卷积神经网络后，得到的张量shape为：[batch_size, 29, 24, 32]
         layer1_output = DL_CNN._convolutional_layer(
             layer_index = 1, 
@@ -322,6 +329,7 @@ class DL_CNN:
             bias_size = [32],
             pooling_size = [1, 2, 2, 1]   # 用 2x2 模板做池化
         )
+        #layer1_output = tf.Print(layer1_output, [layer1_output.shape], 'layer1_output shape = ', summarize=100) 
 
         # 经过第二层卷积神经网络后，得到的张量shape为：[batch_size, 15, 12, 64]
         layer_last_output = DL_CNN._convolutional_layer(    # layer2_output = 
@@ -331,7 +339,8 @@ class DL_CNN:
             bias_size = [64],
             pooling_size = [1, 2, 2, 1]
         )
-
+        #layer2_output = tf.Print(layer2_output, [layer2_output.shape], 'layer2_output shape = ', summarize=100) 
+        
         '''
         # 再加一层试试，得到的张量shape为：[batch_size, , , 128]
         layer_last_output = DL_CNN._convolutional_layer(
@@ -341,10 +350,11 @@ class DL_CNN:
             bias_size = [128],
             pooling_size = [1, 2, 2, 1]
         )
+        #layer_last_output = tf.Print(layer_last_output, [layer_last_output.shape], 'layer_last_output shape = ', summarize=100) 
         '''
 
         # 全连接层。将卷积层张量数据拉成 2-D 张量只有一列的列向量
-        all_link_n_number = 256    # 1024
+        all_link_n_number = 1024    # 1024
         layer_last_output_flatten = tf.contrib.layers.flatten(layer_last_output)
         layer_all_link = tf.nn.relu(
             DL_CNN._linear_layer(
@@ -354,7 +364,8 @@ class DL_CNN:
                 biases_size = [all_link_n_number]
             )
         )
-        
+        #layer_all_link = tf.Print(layer_all_link, [layer_all_link.shape], 'layer_all_link shape = ', summarize=100) 
+
         # 减少过拟合，随机让某些权重不更新
         # layer_all_link = tf.nn.dropout(layer_all_link, 0.8)
         
@@ -365,6 +376,7 @@ class DL_CNN:
             weights_size = [all_link_n_number, class_size],      # 根据类别个数定义最后输出层的神经元
             biases_size = [class_size]
         )
+        #output = tf.Print(output, [output.shape], 'output shape = ', summarize=100)
 
         return output
 
@@ -392,12 +404,11 @@ if __name__ == '__main__':
     image_channel = 1
     one_cnn = DL_CNN('tf_record/olivettifaces', image_height, image_width, image_channel, 40, 'model/olive/olive_best.ckpt')
 
-    # 下面这三个场景不能同时运行，每次只能运行一个场景
     # 场景一：使用训练数据进行模型训练
-    # one_cnn.train(500, 320)
+    one_cnn.train(500, 320, 5, False, 0.01, 80)
 
     # 场景二：使用验证数据来校验训练好的模型的准确率
-    # one_cnn.verify(80, 10)
+    one_cnn.verify(80, 10)
 
     # 场景三：使用训练好的模型来识别一个图片的类型
     
