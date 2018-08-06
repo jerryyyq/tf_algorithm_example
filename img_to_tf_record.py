@@ -68,7 +68,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 class Img2TFRecord(object):
 
-    def __init__(self, in_dir, out_dir, image_type = 'jpg'):
+    def __init__(self, in_dir, out_dir, image_type = 'jpg', train_rate = 0.8):
         """Initializes function and write labels to out_dir/label.txt.
 
         Args:
@@ -85,6 +85,7 @@ class Img2TFRecord(object):
         self.__in_dir = in_dir
         self.__out_dir = out_dir
         self.__image_type = image_type
+        self.__train_rate = train_rate
 
 
 
@@ -272,10 +273,10 @@ class Img2TFRecord(object):
                 index += 1
                 print("breed = {}, label = {}\n".format(breed, self.__breed_label[breed]))
 
-            if 0 == i % 5:  # 20% image put in test set.
-                self.__test_image_with_breed.append((label, file_path))
-            else:
+            if i % 10 < self.__train_rate * 10:
                 self.__train_image_with_breed.append((label, file_path))
+            else:
+                self.__test_image_with_breed.append((label, file_path))
 
         self.__save_breed_label_to_file()
 

@@ -57,8 +57,8 @@ class DL_CNN:
 
     @:return none
     ''' 
-    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False, learning_rate = 0.01, test_sample_number = -1):
-        print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}' . format(train_wheels, train_sample_number, batch_size) )
+    def train(self, train_wheels, train_sample_number, batch_size = 5, continue_train = False, learning_rate = 0.01, test_sample_number = 0):
+        print('开始训练。最大轮次：{}, 样本总数：{}, 每批样本数：{}, 继续上次：{}, 测试样本数：{}' . format(train_wheels, train_sample_number, batch_size, continue_train, test_sample_number) )
         one_set = Img2TFRecord('', self._tf_record_dir)
 
         reshape = [self._image_height, self._image_width, self._image_channel]
@@ -90,7 +90,7 @@ class DL_CNN:
             tf.summary.scalar('train_accuracy', train_accuracy)
 
         # 方法二：按准确率来比较。注意：计算准确率时使用的是：测试集！测试集！测试集！
-        verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(batch_size, reshape, self._class_size)
+        verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(1, reshape, self._class_size)
 
         # 比较标签是否相等，再求的所有数的平均值，tf.cast(强制转换类型)
         # tf.get_variable_scope().reuse_variables()  # 为了方法二对准确率进行计算，复用当前变量
@@ -135,11 +135,14 @@ class DL_CNN:
                 total_accuracy = 0.
                 for j in range( train_sample_number // batch_size ):
                     _, cost, taccuracy, summary = sess.run([train_op, loss_out, train_accuracy, merged_summary_op])
+                    # _, cost, summary = sess.run([train_op, loss_out, merged_summary_op])
+
                     summary_writer.add_summary(summary, i * j)
 
-                    # print('j = {}, cost = {}, train_accuracy = {}' . format(j, cost, taccuracy))
-                    epoch_loss += cost
+                    epoch_loss = epoch_loss + cost
                     total_accuracy = total_accuracy + taccuracy
+
+                total_accuracy = total_accuracy / (j + 1)
 
                 '''
                 # 方法一，每一轮比较一次
@@ -155,34 +158,43 @@ class DL_CNN:
                         break
                 '''
 
-                #'''                
                 # 方法二，按准确率结束学习
                 # 获取测试数据的准确率
-                if 0 > test_sample_number:
-                    acc = accuracy.eval()
-                else:
-                    acc = 0
-                    for k in range(test_sample_number // batch_size):
-                        acc = acc + accuracy.eval()
+                acc = 0.
+                if 0 < test_sample_number:
+                    for k in range(test_sample_number):
+                        va = accuracy.eval()
+                        acc = acc + va
 
+                    k = k + 1   # python 里，此时的 k 是最后一次的值，不是边界值
                     acc = acc / k
-                
-                print(i, ', epoch_loss is : ', epoch_loss, ', train_accuracy is : ', total_accuracy / j, ', verify accuracy is : ', acc)
+
+                print(i, ', epoch_loss is : ', epoch_loss, ', train_accuracy is : ', total_accuracy, ', verify accuracy is : ', acc)
+
                 # 准确率大于0.98时保存并退出
                 if i > 2:
                     if best_loss > epoch_loss:
                         best_loss = epoch_loss
                         save_path = saver.save( sess, self._model_file, global_step = 0 )
                         print( "Model saved in ========> file: {}, epoch_loss = {}" . format(save_path, epoch_loss) )           
-                
-                    if total_accuracy / j > 0.97 and acc > 0.90:
-                        save_path = saver.save( sess, self._model_file, global_step = i )
-                        print( "train_accuracy > 0.97, Model saved in ========> file: {}, epoch_loss = {}, global_step = {}" . format(save_path, epoch_loss, i) )                    
-                    
-                        if acc > 0.97:
-                            saver.save(sess, self._model_file)
-                            print('verify accuracy > 0.97, finish!')
-                            break  # sys.exit(0)
+
+                        '''
+                        if total_accuracy > 0.97 and acc > 0.90:
+                            save_path = saver.save( sess, self._model_file, global_step = i )
+                            print( "train_accuracy > 0.97, Model saved in ========> file: {}, epoch_loss = {}, global_step = {}" . format(save_path, epoch_loss, i) )                    
+                        '''
+
+                        if 0 < test_sample_number:
+                            if acc > 0.97:
+                                saver.save(sess, self._model_file)
+                                print('verify accuracy > 0.97, finish!')
+                                break  # sys.exit(0)
+                        else:
+                            if 0.0 == epoch_loss:
+                                saver.save(sess, self._model_file)
+                                print('epoch_loss == 0.0, finish!')
+                                break
+                            
                 #'''
 
             #关闭线程  
@@ -340,11 +352,11 @@ class DL_CNN:
             pooling_size = [1, 2, 2, 1]
         )
         #layer2_output = tf.Print(layer2_output, [layer2_output.shape], 'layer2_output shape = ', summarize=100) 
-        
+
         '''
         # 再加一层试试，得到的张量shape为：[batch_size, , , 128]
         layer_last_output = DL_CNN._convolutional_layer(
-            layer_index = 3,
+            layer_index = 999,
             data = layer2_output,
             kernel_size = [5, 5, 64, 128],
             bias_size = [128],
