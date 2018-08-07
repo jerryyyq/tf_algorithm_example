@@ -15,7 +15,7 @@ HEIGHT = 25
 
 one_cnn = DL_CNN('/home/yangyuqi/work/crack_sample_mini/tf_record_two', HEIGHT, WIDTH, 1, 2, 'model/crack_mini/crack_best.ckpt')
 # one_cnn.train(500, 84, 3, True, 0.01, 21)
-one_cnn.train(500, 105, 5, False, 0.01)
+one_cnn.train(500, 89, 5, False, 0.01)
 
 #one_cnn = DL_CNN('/home/yangyuqi/work/crack_sample_mini/tf_record_two', HEIGHT, WIDTH, 1, 2, 'model/crack_mini/crack_best.ckpt-0')
 # one_cnn.verify(21, 3)
@@ -27,12 +27,16 @@ one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/6
 
 # not
 print('---------------- not ----------------')
-one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/29-2-11-2.bmp')
-one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/10-2-14-2.bmp')
-one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/class_two/5-no-crack/11-2-24-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/2-2-10-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/2-2-14-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/23-2-6-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/23-2-11-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/27-2-7-2.bmp')
+one_cnn.recognition_one_image('/home/yangyuqi/work/crack_sample_mini/not/27-2-22-2.bmp')
+
 
 # ----------------------------------------------------------------------------------------
-
+print('---------------- image ----------------')
 from PIL import Image, ImageDraw
 import numpy as np
 import tensorflow as tf

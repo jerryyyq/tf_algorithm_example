@@ -90,17 +90,18 @@ class DL_CNN:
             tf.summary.scalar('train_accuracy', train_accuracy)
 
         # 方法二：按准确率来比较。注意：计算准确率时使用的是：测试集！测试集！测试集！
-        verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(1, reshape, self._class_size)
+        if 0 < test_sample_number:
+            verify_image_set, verify_label_set = one_set.read_test_images_from_tf_records(1, reshape, self._class_size)
 
-        # 比较标签是否相等，再求的所有数的平均值，tf.cast(强制转换类型)
-        # tf.get_variable_scope().reuse_variables()  # 为了方法二对准确率进行计算，复用当前变量
-        predict_labell = self._recognition(verify_image_set, self._class_size, self._image_channel)
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(predict_labell, tf.argmax(verify_label_set, 1)), tf.float32))
-        # 将 accuracy 保存以供 tensorboard 使用
-        if tf.__version__ < '1':
-            tf.scalar_summary('accuracy', accuracy)
-        else: 
-            tf.summary.scalar('accuracy', accuracy)
+            # 比较标签是否相等，再求的所有数的平均值，tf.cast(强制转换类型)
+            # tf.get_variable_scope().reuse_variables()  # 为了方法二对准确率进行计算，复用当前变量
+            predict_labell = self._recognition(verify_image_set, self._class_size, self._image_channel)
+            accuracy = tf.reduce_mean(tf.cast(tf.equal(predict_labell, tf.argmax(verify_label_set, 1)), tf.float32))
+            # 将 accuracy 保存以供 tensorboard 使用
+            if tf.__version__ < '1':
+                tf.scalar_summary('accuracy', accuracy)
+            else: 
+                tf.summary.scalar('accuracy', accuracy)
         
         # -------------------------------------------------------------------------
         if tf.__version__ < '1':
